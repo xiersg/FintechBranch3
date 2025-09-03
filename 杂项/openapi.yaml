@@ -1,0 +1,336 @@
+openapi: 3.0.3
+info:
+  title: AI Service API
+  version: "0.3"
+  description: |
+    LLM 对话部分使用 WebSocket，非对话能力使用 HTTP POST。
+    - WebSocket: `ws://<host>:8000/ws?token=<JWT>`（仅用于对话流式）
+    - 其余能力（SFD/IPW）：HTTP 接口（见 paths）
+servers:
+  - url: http://localhost:8000
+    description: 本地开发
+security:
+  - bearerAuth: []
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          example: AUTH_INVALID
+        message:
+          type: string
+          example: Invalid token
+        request_id:
+          type: string
+          nullable: true
+      required: [code, message]
+    FraudDetectRequest:
+      type: object
+      properties:
+        step: { type: integer, example: 1 }
+        type:
+          type: string
+          enum: [CASH_OUT, TRANSFER]
+          example: CASH_OUT
+        amount: { type: number, format: float, example: 1000.0 }
+        nameOrig: { type: string, example: C12345 }
+        oldbalanceOrg: { type: number, format: float, example: 5000.0 }
+        newbalanceOrig: { type: number, format: float, example: 4000.0 }
+        nameDest: { type: string, example: M98765 }
+        oldbalanceDest: { type: number, format: float, example: 10000.0 }
+        newbalanceDest: { type: number, format: float, example: 11000.0 }
+      required:
+        [step, type, amount, nameOrig, oldbalanceOrg, newbalanceOrig, nameDest, oldbalanceDest, newbalanceDest]
+    FraudDetectResponse:
+      type: object
+      properties:
+        status: { type: string, example: success }
+        is_fraud: { type: boolean, example: false }
+        fraud_score: { type: number, format: float, example: 0.37 }
+        message: { type: string, example: 欺诈检测完成 }
+      required: [status, is_fraud, fraud_score]
+    FraudTrainRequest:
+      type: object
+      properties:
+        incremental:
+          type: boolean
+          description: 是否增量训练
+          example: false
+      required: [incremental]
+    FraudTrainResponse:
+      type: object
+      properties:
+        status: { type: string, example: success }
+        message: { type: string, example: 模型训练完成 }
+      required: [status, message]
+    FraudStatusResponse:
+      type: object
+      properties:
+        status: { type: string, example: success }
+        model_loaded: { type: boolean, example: true }
+        threshold: { type: number, format: float, example: 0.65 }
+        feature_count: { type: integer, example: 13 }
+      required: [status, model_loaded]
+    ContentDetectRequest:
+      type: object
+      properties:
+        content:
+          type: string
+          description: 文本、图片URL或HTML
+          example: 这是测试文本
+        content_type:
+          type: string
+          description: 内容类型
+          enum: [text, image, html]
+          example: text
+        is_url:
+          type: boolean
+          description: 当 content_type=image 时，true 表示 content 是图片URL；false 表示应使用 /content/image 上传文件
+          example: false
+        print_yn:
+          type: boolean
+          description: 是否打印详细日志
+          example: false
+      required: [content, content_type]
+    ContentDetectResponse:
+      type: object
+      properties:
+        success: { type: boolean, example: true }
+        is_fraudulent: { type: boolean, example: false }
+        risk_score: { type: number, format: float, example: 0.21 }
+        content_type: { type: string, example: text }
+        content_preview: { type: string, example: 一段文本 }
+      required: [success, is_fraudulent, risk_score]
+paths:
+  /fraud/detect:
+    post:
+      summary: 交易欺诈检测（SFD）
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FraudDetectRequest'
+            examples:
+              example-1:
+                value:
+                  step: 1
+                  type: CASH_OUT
+                  amount: 1000
+                  nameOrig: C12345
+                  oldbalanceOrg: 5000
+                  newbalanceOrig: 4000
+                  nameDest: M98765
+                  oldbalanceDest: 10000
+                  newbalanceDest: 11000
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FraudDetectResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Auth service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /fraud/train:
+    post:
+      summary: 训练/增量训练（SFD）
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FraudTrainRequest'
+            example:
+              incremental: false
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FraudTrainResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Auth service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /fraud/status:
+    get:
+      summary: 模型状态查询（SFD）
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FraudStatusResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Auth service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /content/detect:
+    post:
+      summary: 内容风险检测（文本/图片URL/HTML）
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContentDetectRequest'
+            examples:
+              text:
+                value:
+                  content: 这是测试文本
+                  content_type: text
+              image-url:
+                value:
+                  content: https://example.com/a.jpg
+                  content_type: image
+                  is_url: true
+              html:
+                value:
+                  content: "<html>...</html>"
+                  content_type: html
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentDetectResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Auth service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /content/image:
+    post:
+      summary: 表单直传图片检测（multipart/form-data）
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                image:
+                  type: string
+                  format: binary
+              required: [image]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContentDetectResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Auth service unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
