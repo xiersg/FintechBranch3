@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.financialfinshieldguard.gold.mapper.OperateLogMapper">
+
+    <resultMap id="BaseResultMap" type="com.financialfinshieldguard.gold.model.OperateLog">
+            <id property="id" column="id" />
+            <result property="operateUser" column="operate_user" />
+            <result property="operateTime" column="operate_time" />
+            <result property="className" column="class_name" />
+            <result property="methodName" column="method_name" />
+            <result property="methodParams" column="method_params" />
+            <result property="returnValue" column="return_value" />
+            <result property="costTime" column="cost_time" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,operate_user,operate_time,class_name,method_name,method_params,
+        return_value,cost_time
+    </sql>
+</mapper>
