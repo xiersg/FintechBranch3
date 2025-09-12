@@ -1,0 +1,10 @@
+[
+  {
+    "role": "system",
+    "content": "你是一个简洁的助理，只用中文回答。"
+  },
+  {
+    "role": "user",
+    "content": "你好呀！"
+  }
+]

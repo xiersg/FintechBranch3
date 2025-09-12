@@ -154,8 +154,6 @@ async def chat_ws(websocket: WebSocket):
                 # 取首条 user 消息
                 text = ""
                 for m in payload.get("messages", None):
-                    if m is None :
-                        print(f"in line 156 格式错误 来自会话{req_id}")
                     if m.get("role") == "user":
                         # 这里还没有实现记录历史，之后增加
                         text = m.get("content", "")
@@ -166,11 +164,22 @@ async def chat_ws(websocket: WebSocket):
                     {"role": "system", "content": "你是一个简洁的助理，只用中文回答。"},
                     {"role": "user", "content": f"{text}"},
                 ]
-                for delta in ds.stream_chat(msgs,temperature = 0.3):
-                    await websocket.send_text(json.dumps({
-                        "type": "delta",
-                        "request_id": req_id,
-                        "data": {"index": 0, "delta": delta}}))
+                if os.getenv("Type")=="ollama":
+                    for delta in "ollama功能还未实装---------请期待":
+                        text_total = text_total + delta
+                        await websocket.send_text(json.dumps({
+                            "type": "delta",
+                            "request_id": req_id,
+                            "data": {"index": 0, "delta": delta}}))
+                else:
+                    text_total = ""
+                    for delta in ds.stream_chat(msgs,temperature = 0.3):
+                        text_total = text_total + delta
+                        await websocket.send_text(json.dumps({
+                            "type": "delta",
+                            "request_id": req_id,
+                            "data": {"index": 0, "delta": delta}}))
+
 
                 # 发送结束字段
                 await websocket.send_text(json.dumps({
