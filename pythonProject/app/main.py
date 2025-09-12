@@ -8,6 +8,8 @@ import os, json, math, asyncio
 import httpx
 
 from schemas import *
+from module.Alternatives_API.API import DeepseekStreamer
+ds = DeepseekStreamer(model="deepseek-chat")
 
 # =========================
 # 配置（可用环境变量覆盖）
@@ -88,7 +90,7 @@ app.add_middleware(
 # =========================
 @app.get("/")
 async def root():
-    return {"message": "AI Service is running"}
+    return {"message": "服务正在运行喵"}
 
 # =========================
 # WebSocket（对话流式）
@@ -126,6 +128,10 @@ async def chat_ws(websocket: WebSocket):
     try:
         while True:
             raw = await websocket.receive_text()
+            if raw is None:
+                print("格式错误")
+            else:
+                print(raw)
             try:
                 # 获取message
                 msg = json.loads(raw)
@@ -147,21 +153,25 @@ async def chat_ws(websocket: WebSocket):
 
                 # 取首条 user 消息
                 text = ""
-                for m in payload.get("messages", []):
+                for m in payload.get("messages", None):
+                    if m is None :
+                        print(f"in line 156 格式错误 来自会话{req_id}")
                     if m.get("role") == "user":
                         # 这里还没有实现记录历史，之后增加
                         text = m.get("content", "")
                         break
 
-                # 占位：每 2 字符一个增量
-                for i in range(0, len(text), 2):
-                    delta = text[i:i+2]
-                    await asyncio.sleep(0.1)
+                # 调用API 之后改为调用 ollama
+                msgs = [
+                    {"role": "system", "content": "你是一个简洁的助理，只用中文回答。"},
+                    {"role": "user", "content": f"{text}"},
+                ]
+                for delta in ds.stream_chat(msgs,temperature = 0.3):
                     await websocket.send_text(json.dumps({
                         "type": "delta",
                         "request_id": req_id,
-                        "data": {"index": 0, "delta": delta}
-                    }))
+                        "data": {"index": 0, "delta": delta}}))
+
                 # 发送结束字段
                 await websocket.send_text(json.dumps({
                     "type": "result",
