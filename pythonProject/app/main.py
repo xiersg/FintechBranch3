@@ -1,4 +1,5 @@
 # main.py
+from Demos.win32ts_logoff_disconnected import username
 from fastapi import FastAPI, Header, HTTPException, Depends, UploadFile, File, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
@@ -13,7 +14,7 @@ from schemas import *
 # =========================
 AUTH_BASE_URL = os.getenv("AUTH_BASE_URL", "http://192.168.2.30:8080")
 AUTH_VALIDATE_PATH = os.getenv("AUTH_VALIDATE_PATH", "/api/auth/validate")
-AUTH_TIMEOUT_S = float(os.getenv("AUTH_TIMEOUT_S", "3.0"))
+AUTH_TIMEOUT_S = float(os.getenv("AUTH_TIMEOUT_S", "5.0"))
 
 """
 AUTH_BASE_URL        验证服务基础URL，后端地址
@@ -22,12 +23,20 @@ AUTH_TIMEOUT_S       服务超时时间
 """
 
 def _auth_url() -> str:
+    """
+    返回路径
+    """
     return f"{AUTH_BASE_URL.rstrip('/')}/{AUTH_VALIDATE_PATH.lstrip('/')}"
 
 # =========================
 # 鉴权工具
 # =========================
 async def jwt_val(token: str) -> Dict[str, Any]:
+    """
+    JWT鉴权
+    :param token: 鉴权token
+    :return:  data  # 可包含 username/roles/tenant 等
+    """
     url = _auth_url()
     async with httpx.AsyncClient(timeout=AUTH_TIMEOUT_S) as client:
         try:
@@ -53,6 +62,10 @@ async def bearer_auth(authorization: str = Header(...)) -> Dict[str, Any]:
 
 # 客户端在连接时必须带上 ?token=xxx 这样的 URL 参数，否则直接拒绝。
 async def validate_ws_token(token: Optional[str]) -> Dict[str, Any]:
+    test_token = os.getenv("Token")
+    # 测试token
+    if token == test_token:
+        return {username:"xiersg"}
     if not token:
         raise HTTPException(status_code=401, detail="Missing token")
     return await jwt_val(token)
@@ -78,108 +91,6 @@ async def root():
     return {"message": "AI Service is running"}
 
 # =========================
-# Fraud 路由（POST）
-# =========================
-@app.post("/fraud/detect", response_model=FraudDetectResponse)
-async def fraud_detect(req: FraudDetectRequest, user=Depends(bearer_auth)):
-    """
-    单笔交易欺诈检测（占位逻辑）：
-    - 使用源/目的余额变化与交易金额的简单差值构造一个分数
-    - 请在此处替换为真实模型推理
-    """
-    delta_src = req.oldbalanceOrg - req.newbalanceOrig
-    delta_dst = req.newbalanceDest - req.oldbalanceDest
-    raw = abs(delta_src - req.amount) + abs(delta_dst - req.amount)
-    score = 1.0 - math.exp(-raw / max(req.amount, 1.0))
-    score = max(0.0, min(1.0, score))
-    return FraudDetectResponse(is_fraud=score > 0.65, fraud_score=round(score, 4))
-
-@app.post("/fraud/train", response_model=FraudTrainResponse)
-async def fraud_train(req: FraudTrainRequest, user=Depends(bearer_auth)):
-    """
-    触发训练（占位）：
-    - incremental=True 表示增量训练
-    - 生产环境建议改为异步任务 + 进度查询
-    """
-    return FraudTrainResponse()
-
-@app.get("/fraud/status", response_model=FraudStatusResponse)
-async def fraud_status(user=Depends(bearer_auth)):
-    """
-    模型状态查询（占位）：
-    - 返回是否加载、阈值、特征数等
-    """
-    return FraudStatusResponse()
-
-# =========================
-# Content 路由（POST）
-# =========================
-
-def _simple_text_score(text: str) -> float:
-    # 例：按长度给一个风险分（占位），请替换为真实风控模型
-    return min(1.0, len(text) / 200.0)
-
-@app.post("/content/detect", response_model=ContentDetectResponse)
-async def content_detect(req: ContentDetectRequest, user=Depends(bearer_auth)):
-    """
-    内容风险检测（文本/图片URL/HTML）
-    - text: 直接对文本打分
-    - image + is_url=True: 使用 URL 占位打分（真实实现应下载并检测）
-    - html: 对 HTML 文本做简易打分
-    """
-    if req.content_type == "text":
-        score = _simple_text_score(req.content)
-        return ContentDetectResponse(
-            is_fraudulent=score > 0.7,
-            risk_score=round(score, 4),
-            content_type="text",
-            content_preview=req.content[:50]
-        )
-    elif req.content_type == "image":
-        if not req.is_url:
-            raise HTTPException(status_code=400, detail="For local image use /content/image (multipart/form-data)")
-
-
-        # 接入评分逻辑
-        score = 0.12  # 占位：可按域名/尺寸/EXIF 等要素实现真实评分
-
-
-        return ContentDetectResponse(
-            is_fraudulent=score > 0.7,
-            risk_score=score,
-            content_type="image",
-            content_preview=req.content[:100]
-        )
-    elif req.content_type == "html":
-        score = _simple_text_score(req.content)
-        return ContentDetectResponse(
-            is_fraudulent=score > 0.7,
-            risk_score=round(score, 4),
-            content_type="html",
-            content_preview=req.content[:50].replace("\n", " ")
-        )
-    else:
-        raise HTTPException(status_code=400, detail="Unsupported content_type")
-
-@app.post("/content/image", response_model=ContentDetectResponse)
-async def content_image(image: UploadFile = File(...), user=Depends(bearer_auth)):
-    """
-    表单直传图片（multipart/form-data）
-    - 字段名：image
-    """
-    content = await image.read()
-    if not content:
-        raise HTTPException(status_code=400, detail="Empty file")
-    kb = max(1, len(content) // 1024)
-    score = min(1.0, kb / 1024.0)  # 占位：用文件大小粗略估计
-    return ContentDetectResponse(
-        is_fraudulent=score > 0.7,
-        risk_score=round(score, 4),
-        content_type="image",
-        content_preview=f"uploaded:{image.filename} ({kb}KB)"
-    )
-
-# =========================
 # WebSocket（对话流式）
 # =========================
 @app.websocket("/ws")
@@ -189,7 +100,9 @@ async def chat_ws(websocket: WebSocket):
     - 握手用 ?token=<JWT> 鉴权
     - 消息格式：
       客户端 -> 服务端：
-        {"action":"chat.create","request_id":"req-1","payload":{"messages":[{"role":"user","content":"你好"}]}}
+        {"action":"chat.create",
+        "request_id":"req-1",
+        "payload":{"messages":[{"role":"user","content":"你好"}]}}
       服务端 -> 客户端（流）：
         {"type":"ack","request_id":"req-1"}
         {"type":"delta","request_id":"req-1","data":{"index":0,"delta":"你"}}
@@ -197,11 +110,14 @@ async def chat_ws(websocket: WebSocket):
         {"type":"result","request_id":"req-1","data":{"finish_reason":"stop","usage":{...}}}
     """
     token = websocket.query_params.get("token")
+
+    # 验证token
     try:
         user_info = await validate_ws_token(token)
     except HTTPException as e:
         code = 1008 if e.status_code == 401 else 1011
         await websocket.close(code=code)
+
         return
 
     await websocket.accept()
@@ -211,14 +127,20 @@ async def chat_ws(websocket: WebSocket):
         while True:
             raw = await websocket.receive_text()
             try:
+                # 获取message
                 msg = json.loads(raw)
             except json.JSONDecodeError:
-                await websocket.send_text(json.dumps({"type": "error", "error": {"code": "BAD_REQUEST", "message": "invalid json"}}))
+                # 捕获json解析错误
+                await websocket.send_text(json.dumps(
+                    {"type": "error",
+                     "error": {"code": "BAD_REQUEST",
+                               "message": "invalid json"}
+                     }))
                 continue
 
-            action = msg.get("action")
-            req_id = msg.get("request_id", "")
-            payload = msg.get("payload", {})
+            action = msg.get("action")          # 用于分支功能
+            req_id = msg.get("request_id", "")  # request_id为对话id
+            payload = msg.get("payload", {})    # 请求的“有效载荷”，真正装业务数据的部分
 
             if action == "chat.create":
                 await websocket.send_text(json.dumps({"type": "ack", "request_id": req_id}))
@@ -227,6 +149,7 @@ async def chat_ws(websocket: WebSocket):
                 text = ""
                 for m in payload.get("messages", []):
                     if m.get("role") == "user":
+                        # 这里还没有实现记录历史，之后增加
                         text = m.get("content", "")
                         break
 
@@ -239,7 +162,7 @@ async def chat_ws(websocket: WebSocket):
                         "request_id": req_id,
                         "data": {"index": 0, "delta": delta}
                     }))
-
+                # 发送结束字段
                 await websocket.send_text(json.dumps({
                     "type": "result",
                     "request_id": req_id,
@@ -261,6 +184,7 @@ async def chat_ws(websocket: WebSocket):
                 }))
     except WebSocketDisconnect:
         # 客户端断开
+        print("\n=== 客户端断开 ===\n")
         pass
 
 # =========================
@@ -268,4 +192,4 @@ async def chat_ws(websocket: WebSocket):
 # =========================
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
