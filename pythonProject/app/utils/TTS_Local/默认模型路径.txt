@@ -1,0 +1,1 @@
+默认模型路径 C:\Users\用户\AppData\Local\tts\tts_models--multilingual--multi-dataset--xtts_v2
