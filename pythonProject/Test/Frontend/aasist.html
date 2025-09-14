@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>Deepfake 检测·前端快速自测</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial; margin: 24px; }
+    .card { max-width: 720px; margin: auto; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,.04); }
+    .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .btn { padding: 8px 16px; border: 0; border-radius: 8px; background: #111827; color: #fff; cursor: pointer; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .muted { color: #6b7280; font-size: 13px; }
+    #drop { border: 2px dashed #9ca3af; border-radius: 10px; padding: 16px; text-align: center; color: #6b7280; }
+    pre { background: #0b1020; color: #e5e7eb; padding: 12px; border-radius: 8px; overflow: auto; }
+    .ok { color: #065f46; }
+    .bad { color: #7f1d1d; }
+    .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; color: #fff; }
+    .pill.genuine { background: #10b981; }
+    .pill.spoof { background: #ef4444; }
+    .pill.invalid { background: #9ca3af; }
+    .small { font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2 style="margin:0 0 6px;">Deepfake 检测 · 自测页面</h2>
+    <div class="muted">后端：POST <code>/anti_spoof_score</code> （multipart/form-data, 字段名 <code>file</code>）</div>
+
+    <div style="height: 16px;"></div>
+
+    <label class="muted small">后端地址</label>
+    <div class="row">
+      <input id="base" value="http://127.0.0.1:8000" style="width: 420px; padding: 8px; border:1px solid #e5e7eb; border-radius: 8px;" />
+      <button id="ping" class="btn" type="button">Ping /docs</button>
+    </div>
+
+    <div style="height: 16px;"></div>
+
+    <label class="muted small">选择 WAV 文件</label>
+    <div class="row">
+      <input id="file" type="file" accept="audio/wav" />
+      <button id="send" class="btn" type="button">上传检测</button>
+    </div>
+
+    <div style="height: 12px;"></div>
+    <div id="drop" class="small">或把 <b>.wav</b> 拖到这里</div>
+
+    <div style="height: 20px;"></div>
+    <div id="status" class="muted">待上传…</div>
+
+    <div style="height: 12px;"></div>
+    <div id="summary"></div>
+
+    <div style="height: 12px;"></div>
+    <pre id="out">{}</pre>
+  </div>
+
+  <script>
+    const $ = (s) => document.querySelector(s);
+    const base = $("#base");
+    const file = $("#file");
+    const send = $("#send");
+    const out = $("#out");
+    const summary = $("#summary");
+    const statusEl = $("#status");
+    const drop = $("#drop");
+
+    function setBusy(b) {
+      send.disabled = b;
+      statusEl.textContent = b ? "上传中…" : "待上传…";
+    }
+
+    async function postFile(f) {
+      const url = base.value.replace(/\/+$/,'') + "/anti_spoof_score";
+      const fd = new FormData();
+      fd.append("file", f, f.name || "audio.wav");
+      setBusy(true);
+      try {
+        const resp = await fetch(url, { method: "POST", body: fd });
+        const data = await resp.json().catch(()=>({error:"Invalid JSON"}));
+        out.textContent = JSON.stringify(data, null, 2);
+
+        // 尝试解析扁平返回
+        const spoof_prob = data.spoof_prob ?? data?.data?.spoof_prob;
+        const label = data.label ?? data?.data?.label;
+        const valid = data.valid ?? data?.data?.valid;
+        const reason = data.reason ?? data?.msg;
+        const meta = data.meta ?? data?.data?.meta;
+
+        let pillClass = "invalid";
+        if (label === "genuine") pillClass = "genuine";
+        if (label === "spoof") pillClass = "spoof";
+
+        summary.innerHTML = `
+          <div>结果：
+            <span class="pill ${pillClass}">${label ?? "unknown"}</span>
+            <span style="margin-left:8px;">spoof_prob = <b>${typeof spoof_prob === "number" ? spoof_prob.toFixed(6) : spoof_prob}</b></span>
+          </div>
+          <div class="muted small">
+            valid=${valid} ${reason ? " · reason=" + reason : ""}
+            ${meta && (meta.duration!==undefined || meta.speech_ratio!==undefined)
+              ? ` · duration=${(meta.duration||0).toFixed?.(2) ?? meta.duration}s · speech_ratio=${(meta.speech_ratio||0).toFixed?.(2) ?? meta.speech_ratio}`
+              : ""}
+          </div>
+        `;
+      } catch (e) {
+        out.textContent = JSON.stringify({ error: String(e) }, null, 2);
+        summary.innerHTML = `<span class="bad">请求失败，请检查后端是否启动、CORS 是否允许、URL 是否正确。</span>`;
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    send.addEventListener("click", async () => {
+      const f = file.files[0];
+      if (!f) { alert("请选择 .wav 文件"); return; }
+      await postFile(f);
+    });
+
+    // 拖拽上传
+    ;["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.style.background = "#f9fafb"; }));
+    ;["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.style.background = ""; }));
+    drop.addEventListener("drop", e => {
+      const f = e.dataTransfer?.files?.[0];
+      if (f) { file.files = e.dataTransfer.files; postFile(f); }
+    });
+
+    // Ping /docs 方便确认服务通
+    $("#ping").addEventListener("click", async () => {
+      try {
+        const resp = await fetch(base.value.replace(/\/+$/,'') + "/docs");
+        statusEl.textContent = resp.ok ? "后端可访问（/docs）" : "后端响应异常：" + resp.status;
+      } catch (e) {
+        statusEl.textContent = "无法访问后端：" + e;
+      }
+    });
+  </script>
+</body>
+</html>

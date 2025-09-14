@@ -1,15 +1,12 @@
 # main.py
-from Demos.win32ts_logoff_disconnected import username
 from fastapi import FastAPI, Header, HTTPException, Depends, UploadFile, File, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Literal, Optional, List, Dict, Any
-import os, json, math, asyncio
+import os, json, math, asyncio, tempfile
+from pathlib import Path
 import httpx
 
-from schemas import *
-from module.Alternatives_API.API import DeepseekStreamer
-ds = DeepseekStreamer(model="deepseek-chat")
 
 # =========================
 # 配置（可用环境变量覆盖）
@@ -64,10 +61,12 @@ async def bearer_auth(authorization: str = Header(...)) -> Dict[str, Any]:
 
 # 客户端在连接时必须带上 ?token=xxx 这样的 URL 参数，否则直接拒绝。
 async def validate_ws_token(token: Optional[str]) -> Dict[str, Any]:
+    if os.getenv("ALLOW_WS_NO_TOKEN") == "1":
+        return {"username": "dev"}  # 本地联调放行
     test_token = os.getenv("Token")
     # 测试token
     if token == test_token:
-        return {username:"xiersg"}
+        return {"username":"xiersg"}
     if not token:
         raise HTTPException(status_code=401, detail="Missing token")
     return await jwt_val(token)
@@ -91,6 +90,46 @@ app.add_middleware(
 @app.get("/")
 async def root():
     return {"message": "服务正在运行喵"}
+
+# =========================
+# 实例化
+# =========================
+from schemas import *
+
+@app.on_event("startup")
+def _lazy_init_heavy_components():
+    """
+    启动后再加载重组件，避免 import 阶段阻塞 / 根路由。
+    """
+    from module.Alternatives_API.API import DeepseekStreamer
+    from module.anti_spoof.inference import AASISTDetector
+    global ds, detector
+    ROOT = Path(__file__).resolve().parent
+
+    # 先把服务跑起来，再加载 deepseek（如果它初始化会访问网络，就不会卡住启动）
+    try:
+        ds = DeepseekStreamer(model="deepseek-chat")
+        print("[startup] DeepseekStreamer 准备好了")
+    except Exception as e:
+        print(f"[startup] Deepseek init failed: {e}")
+
+    # 再加载 AASIST（权重大，可能要几秒）
+    conf = ROOT / "config" / "AASIST.conf"
+    ckpt = ROOT / "module" / "anti_spoof" / "models" / "weights" / "AASIST.pth"
+
+    try:
+        detector = AASISTDetector(
+            conf_path=str(conf),
+            weight_path=str(ckpt),
+            use_cuda=False,
+            min_duration_sec=2.0,
+            vad=False
+        )
+        print("[startup] AASISTDetector 准备好了")
+    except Exception as e:
+        # 打印出来好排查（不会让进程静默卡着）
+        print(f"[startup] AASIST init failed: {e}")
+        # 也可以选择 raise，让启动直接失败
 
 # =========================
 # WebSocket（对话流式）
@@ -175,10 +214,12 @@ async def chat_ws(websocket: WebSocket):
                     text_total = ""
                     for delta in ds.stream_chat(msgs,temperature = 0.3):
                         text_total = text_total + delta
+                        print(delta, end="", flush=True)
                         await websocket.send_text(json.dumps({
                             "type": "delta",
                             "request_id": req_id,
                             "data": {"index": 0, "delta": delta}}))
+                        await asyncio.sleep(0)
 
 
                 # 发送结束字段
@@ -207,8 +248,62 @@ async def chat_ws(websocket: WebSocket):
         pass
 
 # =========================
+# 语音克隆检查
+# =========================
+
+@app.post("/anti_spoof_score")
+async def score(file: UploadFile = File(...)):
+    """
+    spoof_prob：伪造概率（越大越像伪造/合成音频）
+    label：
+        "genuine" = 真人/真实音频
+        "spoof" = 伪造/深度合成音频
+    valid：是否通过前置校验（最小时长、VAD）；False 时给出 reason（比如 too_short_or_no_speech）
+    meta：一些有用的附加信息（时长、语音占比），便于后续监控与调参
+    """
+    if detector is None:
+        raise HTTPException(status_code=503, detail="detector 未实例化")
+    # 阈值
+    THRESHOLD = 0.5
+
+    # 将文件本地缓存
+    raw = await file.read()
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+        tmp.write(raw)
+        tmp_path = tmp.name
+    try:
+        # 调用库处理文件
+        prob, meta = detector.score_wav(tmp_path)  # 你的类里会统一到 16k/mono 并推理
+
+        # 如果文件预处理不通过，就直接返回固定格式
+        valid = not meta.get("reason")
+        if not valid:
+            return {
+                "spoof_prob": -1.0,
+                "label": "invalid",
+                "valid": False,
+                "reason": meta.get("reason", ""),
+                "meta": {k: v for k, v in meta.items() if k in ("duration","speech_ratio")},
+            }
+
+        # 返回模型输出
+        label = "spoof" if (prob is not None and float(prob) >= THRESHOLD) else "genuine"
+        return {
+            "spoof_prob": float(prob) if prob is not None else -1.0,
+            "label": label,
+            "valid": True,
+            "reason": "",
+            "meta": {k: v for k, v in meta.items() if k in ("duration","speech_ratio")},
+        }
+    # 删除缓存文件
+    finally:
+        try: os.remove(tmp_path)
+        except: pass
+
+# =========================
 # 本地直接运行
 # =========================
 if __name__ == "__main__":
+
     import uvicorn
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=False)
