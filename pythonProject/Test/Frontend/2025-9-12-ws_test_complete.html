@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <title>WS 流式对话测试（固定自填地址）</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root { --bg:#0ea5e9; --muted:#64748b; --danger:#ef4444; --ok:#16a34a; }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial; background:#f6f7fb; color:#0f172a; }
+    header { position:sticky; top:0; background:#fff; box-shadow:0 1px 8px rgba(0,0,0,.06); padding:12px 16px; z-index:10; }
+    header h1 { margin:0 0 8px 0; font-size:18px; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    input[type="text"], input[type="password"] { padding:8px 10px; border:1px solid #cbd5e1; border-radius:8px; min-width:280px; font-size:14px; background:#fff; }
+    button { padding:8px 12px; border:0; border-radius:8px; cursor:pointer; color:#fff; font-weight:600; }
+    .btn { background:var(--bg); }
+    .btn.muted { background:var(--muted); }
+    .btn.danger { background:var(--danger); }
+    .btn:disabled { opacity:.6; cursor:not-allowed; }
+    #status { font-size:13px; margin-left:4px; }
+    main { max-width:900px; margin:16px auto; padding:0 16px 24px; display:grid; grid-template-columns: 1fr; gap:12px; }
+    .pane { background:#fff; border:1px solid #e2e8f0; border-radius:12px; }
+    .chat { height: 58vh; overflow:auto; padding:16px; }
+    .bubble { max-width:72%; padding:10px 12px; border-radius:14px; margin:6px 0; line-height:1.45; white-space:pre-wrap; word-break:break-word; }
+    .u { background:#e2f2ff; margin-left:auto; border-bottom-right-radius:4px; }
+    .a { background:#f1f5f9; margin-right:auto; border-bottom-left-radius:4px; }
+    .meta { font-size:12px; color:#6b7280; margin:0 2px 6px; }
+    .composer { display:flex; gap:8px; padding:10px; border-top:1px solid #e2e8f0; }
+    #input { flex:1; padding:10px 12px; border:1px solid #cbd5e1; border-radius:10px; font-size:15px; }
+    details { padding:10px 12px; }
+    #log { height:160px; overflow:auto; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; background:#0b1220; color:#e5e7eb; border-radius:8px; padding:10px; }
+    .kv { display:grid; grid-template-columns: 120px 1fr; gap:10px; align-items:center; padding:10px 12px 0; }
+    .kv label { font-size:13px; color:#475569; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>WebSocket 流式对话测试</h1>
+    <div class="row">
+      <input id="wsUrl" type="text" value="ws://localhost:8000/ws" placeholder="ws://host:port/ws" />
+      <input id="token" type="text" placeholder="token（可留空）" />
+      <button id="btnConnect" class="btn">连接</button>
+      <button id="btnDisconnect" class="btn danger" disabled>断开</button>
+      <span id="status">未连接</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="pane">
+      <div id="chat" class="chat"></div>
+      <div class="composer">
+        <input id="input" type="text" placeholder="输入消息，回车发送…" />
+        <button id="btnSend" class="btn muted" disabled>发送</button>
+        <button id="btnClear" class="btn muted">清屏</button>
+      </div>
+    </section>
+
+    <section class="pane">
+      <details open>
+        <summary>事件日志</summary>
+        <div id="log"></div>
+      </details>
+      <div class="kv">
+        <label>说明</label>
+        <div>
+          - 不会自动替换“WS 地址”，<strong>始终使用你输入的值</strong>。<br/>
+          - 协议：发送 <code>{action:"chat.create", request_id, payload:{messages:[{role:"user",content}]}}</code><br/>
+          - 服务端将依次返回 <code>ack → 多个 delta → result</code>；错误返回 <code>error</code>。
+        </div>
+      </div>
+    </section>
+  </main>
+
+<script>
+/* ========== 简易状态 ========= */
+let ws = null;
+let reqSeq = 1;
+let streaming = null; // { reqId, el } 指向当前在流式拼接的助手气泡
+let isConnecting = false; // NEW: 防止连接中的重复尝试
+
+/* ========= 工具 ========= */
+const $ = sel => document.querySelector(sel);
+function logLine(...args) {
+  const el = $('#log'); const div = document.createElement('div');
+  const t = new Date().toLocaleTimeString();
+  div.textContent = `[${t}] ` + args.map(a => typeof a==='string' ? a : JSON.stringify(a)).join(' ');
+  el.appendChild(div); el.scrollTop = el.scrollHeight;
+}
+function setStatus(text, color='#6b7280') {
+  const s = $('#status'); s.textContent = text; s.style.color = color;
+}
+function buildUrlFixed() {
+  const base = $('#wsUrl').value.trim();
+  const token = $('#token').value.trim();
+  if (!token) return base;
+  try {
+    const u = new URL(base);
+    u.searchParams.set('token', token);
+    return u.toString();
+  } catch {
+    return base + (base.includes('?') ? '&' : '?') + 'token=' + encodeURIComponent(token);
+  }
+}
+function enableDuringConn(on) {
+  $('#btnDisconnect').disabled = !on;
+  $('#btnSend').disabled = !on;
+  $('#input').disabled = !on;
+  $('#btnConnect').disabled = on;
+  // 已连接时也锁定地址与 token；断开后恢复编辑
+  $('#wsUrl').disabled = on;
+  $('#token').disabled = on;
+}
+function setUiForConnecting(on) {
+  // 连接建立过程中也禁用“连接”按钮和地址/Token，避免重复尝试或修改
+  $('#btnConnect').disabled = on;
+  $('#btnDisconnect').disabled = true;
+  $('#btnSend').disabled = true;
+  $('#input').disabled = true;
+  $('#wsUrl').disabled = on;
+  $('#token').disabled = on;
+}
+
+/* ========= UI：追加气泡 ========= */
+function appendUserBubble(text) {
+  const chat = $('#chat');
+  const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = '你';
+  const div = document.createElement('div'); div.className = 'bubble u'; div.textContent = text;
+  chat.appendChild(meta); chat.appendChild(div); chat.scrollTop = chat.scrollHeight;
+}
+function startAssistantBubble() {
+  const chat = $('#chat');
+  const meta = document.createElement('div'); meta.className = 'meta'; meta.textContent = '助手';
+  const div = document.createElement('div'); div.className = 'bubble a'; div.textContent = '';
+  chat.appendChild(meta); chat.appendChild(div); chat.scrollTop = chat.scrollHeight;
+  return div;
+}
+
+/* ========= 连接 / 断开 ========= */
+function connect() {
+  // 防抖：已连或正在连接都拒绝新尝试
+  if (isConnecting || (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING))) {
+    logLine('当前已连接或正在连接，忽略本次连接请求');
+    return;
+  }
+
+  const url = buildUrlFixed();
+  try { new URL(url); } catch { logLine('警告：WS 地址可能不合法 →', url); }
+
+  setStatus('连接中…', 'var(--muted)');
+  isConnecting = true;
+  setUiForConnecting(true);
+
+  ws = new WebSocket(url);
+
+  ws.onopen = () => {
+    isConnecting = false;
+    setStatus('已连接', 'var(--ok)');
+    logLine('连接成功 →', url);
+    enableDuringConn(true);     // 已连接：锁住“连接”按钮与地址/Token
+    $('#input').focus();
+  };
+  ws.onclose = (ev) => {
+    isConnecting = false;
+    setStatus(`已断开 (code=${ev.code})`, 'var(--danger)');
+    logLine('连接关闭', {code: ev.code, reason: ev.reason});
+    enableDuringConn(false);    // 断开：允许再次连接，并恢复地址/Token 可编辑
+    streaming = null;
+  };
+  ws.onerror = (e) => {
+    isConnecting = false;
+    setStatus('错误', 'var(--danger)');
+    logLine('WS 错误', e);
+    // 若未成功建立连接，则恢复到可再次尝试状态
+    enableDuringConn(false);
+  };
+  ws.onmessage = (ev) => {
+    let msg = null; try { msg = JSON.parse(ev.data); } catch { logLine('收到非 JSON：', ev.data); return; }
+    handleServerMessage(msg);
+  };
+}
+function disconnect() { if (ws) { ws.close(1000, 'client close'); } }
+
+/* ========= 处理服务端消息 ========= */
+function handleServerMessage(msg) {
+  if (msg.type === 'ack') {
+    logLine('ACK', msg.request_id || '');
+    if (!streaming || streaming.reqId !== msg.request_id) {
+      const el = startAssistantBubble();
+      streaming = { reqId: msg.request_id || '', el };
+    }
+  } else if (msg.type === 'delta') {
+    const d = msg?.data?.delta ?? '';
+    if (!streaming) {
+      const el = startAssistantBubble();
+      streaming = { reqId: msg.request_id || '', el };
+    }
+    streaming.el.textContent += d;
+    $('#chat').scrollTop = $('#chat').scrollHeight;
+    logLine('DELTA', d);
+  } else if (msg.type === 'result') {
+    logLine('RESULT', msg.data || {});
+    streaming = null;
+  } else if (msg.type === 'error') {
+    logLine('ERROR', msg.error || msg);
+    const el = startAssistantBubble();
+    el.style.background = '#ffe4e6';
+    el.textContent = `错误：${(msg.error && msg.error.message) || 'unknown'}`;
+    streaming = null;
+  } else {
+    logLine('UNKNOWN', msg);
+  }
+}
+
+/* ========= 发送 ========= */
+function sendMessage() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) { logLine('尚未连接'); return; }
+  const text = $('#input').value;
+  if (!text.trim()) return;
+  $('#input').value = '';
+
+  appendUserBubble(text);
+
+  const reqId = `req-${reqSeq++}`;
+  streaming = null;
+
+  const packet = {
+    action: "chat.create",
+    request_id: reqId,
+    payload: { messages: [ { role: "user", content: text } ] }
+  };
+  ws.send(JSON.stringify(packet));
+  logLine('SEND →', packet);
+}
+
+/* ========= 清屏 ========= */
+function clearAll() {
+  $('#chat').innerHTML = '';
+  $('#log').innerHTML = '';
+  streaming = null;
+}
+
+/* ========= 绑定 ========= */
+$('#btnConnect').onclick = connect;
+$('#btnDisconnect').onclick = disconnect;
+$('#btnSend').onclick = sendMessage;
+$('#btnClear').onclick = clearAll;
+$('#input').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+enableDuringConn(false);
+</script>
+</body>
+</html>

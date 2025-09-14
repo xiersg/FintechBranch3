@@ -17,8 +17,6 @@ class DeepseekStreamer:
         timeout: float | None = 60.0,
     ):
         self.api_key = api_key if api_key is not None else os.getenv("DeepSeekAPI")
-        print(f"DeepSeekAPI -> {os.getenv("DeepSeekAPI")}")
-        print(f"API -> {self.api_key}")
         self.base_url = "https://api.deepseek.com"
         self.model = model
         # OpenAI 兼容：指定 api_key + base_url 即可
@@ -74,7 +72,7 @@ if __name__ == "__main__":
     ds = DeepseekStreamer(model="deepseek-chat")
 
     msgs = [
-        {"role": "system", "content": "你是一个简洁的助理，只用中文回答。"},
+        {"role": "system", "content": "你是一个贴心的智能金融助手，只用中文回答。"},
         {"role": "user", "content": "用一句话解释什么是流式输出。"},
     ]
 
