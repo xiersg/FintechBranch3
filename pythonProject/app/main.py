@@ -103,7 +103,8 @@ def _lazy_init_heavy_components():
     """
     from module.Alternatives_API.API import DeepseekStreamer
     from module.anti_spoof.inference import AASISTDetector
-    global ds, detector
+    from utils.msg_load_save import DatabaseManager
+    global ds, detector,db
     ROOT = Path(__file__).resolve().parent
 
     # 先把服务跑起来，再加载 deepseek（如果它初始化会访问网络，就不会卡住启动）
@@ -111,7 +112,7 @@ def _lazy_init_heavy_components():
         ds = DeepseekStreamer(model="deepseek-chat")
         print("[startup] DeepseekStreamer 准备好了")
     except Exception as e:
-        print(f"[startup] Deepseek init failed: {e}")
+        print(f"[startup] DeepseekAPI 启动失败: {e}")
 
     # 再加载 AASIST（权重大，可能要几秒）
     conf = ROOT / "config" / "AASIST.conf"
@@ -128,8 +129,15 @@ def _lazy_init_heavy_components():
         print("[startup] AASISTDetector 准备好了")
     except Exception as e:
         # 打印出来好排查（不会让进程静默卡着）
-        print(f"[startup] AASIST init failed: {e}")
+        print(f"[startup] AASIST 启动失败: {e}")
         # 也可以选择 raise，让启动直接失败
+
+    try:
+        db = DatabaseManager(db_path=ROOT / "data" / "chat_data.db")
+        db.init_database()
+        print("[startup] DatabaseManager 准备好了")
+    except Exception as e:
+        print(f"[startup] DatabaseManager init failed: {e}")
 
 # =========================
 # WebSocket（对话流式）
@@ -186,6 +194,7 @@ async def chat_ws(websocket: WebSocket):
             action = msg.get("action")          # 用于分支功能
             req_id = msg.get("request_id", "")  # request_id为对话id
             payload = msg.get("payload", {})    # 请求的“有效载荷”，真正装业务数据的部分
+            chat_id = msg.get("chat_id", 1)
 
             if action == "chat.create":
                 await websocket.send_text(json.dumps({"type": "ack", "request_id": req_id}))
@@ -198,11 +207,15 @@ async def chat_ws(websocket: WebSocket):
                         text = m.get("content", "")
                         break
 
-                # 调用API 之后改为调用 ollama
-                msgs = [
-                    {"role": "system", "content": "你是一个简洁的助理，只用中文回答。"},
-                    {"role": "user", "content": f"{text}"},
-                ]
+                # 获取历史记录
+                prompt = {"role":"system","content":str("""
+                    你是一个金融助手，需要全力劝阻用户进行高风险金融活动，并且需要耐心，客观的分析用户行为的利害。
+                """)}
+                history = db.get_session_history(chat_id,limit=20)
+                msgs = {"role": "user", "content": f"{text}"}
+                msgs = [prompt] + [{"role": h["role"], "content": h["content"]} for h in (history or []) if h.get("role") in {"user", "assistant"}] + [msgs]
+
+                # 调用模型
                 if os.getenv("Type")=="ollama":
                     for delta in "ollama功能还未实装---------请期待":
                         text_total = text_total + delta
@@ -220,6 +233,11 @@ async def chat_ws(websocket: WebSocket):
                             "request_id": req_id,
                             "data": {"index": 0, "delta": delta}}))
                         await asyncio.sleep(0)
+
+                # 保存聊天记录
+                db.add_message(chat_id, "user", text)
+                db.add_message(chat_id, "assistant", text_total)
+
 
 
                 # 发送结束字段
@@ -250,7 +268,6 @@ async def chat_ws(websocket: WebSocket):
 # =========================
 # 语音克隆检查
 # =========================
-
 @app.post("/anti_spoof_score")
 async def score(file: UploadFile = File(...)):
     """
@@ -299,6 +316,31 @@ async def score(file: UploadFile = File(...)):
     finally:
         try: os.remove(tmp_path)
         except: pass
+
+
+# =========================
+# 获取所有对话名和ID
+# =========================
+@app.get("/get_chathistory_name")
+async def get_chathistory_name() -> Dict[str, Any]:
+
+    # 因为暂时没有做用户登录，所有这里省去了区分用户
+    available_sessions = db.get_available_sessions()
+
+    # 获取历史对话列表
+    history_name = {}
+    for dt in available_sessions:
+        history_name[dt["name"]] = dt.get("session_id")
+    return history_name
+
+# =========================
+# 获取chat_id下所有聊天
+# =========================
+@app.get("/get_chathistory")
+async def get_chathistory(session_id: int, response_model=list[dict[str, Any]]):
+    history = db.get_session_history(session_id)
+    msgs = [{"role": h["role"], "content": h["content"]} for h in (history or []) if h.get("role") in {"user", "assistant"}]
+    return msgs
 
 # =========================
 # 本地直接运行
