@@ -221,7 +221,7 @@ class DatabaseManager:
 if __name__ == '__main__':
     db = DatabaseManager()
     db.init_database()
-    session_id = db.create_session("AI_financial_assistant", "Character 1", "用于协助金融相关服务的助手")
+    session_id = db.create_session("AI_financial_assistant", "Character 2", "用于协助金融相关服务的助手")
     print("对话创建成功！")
     db.add_message(session_id, "user", "Hello")
     db.add_message(session_id, "assistant", "Hi there!")
