@@ -1,11 +1,14 @@
 # main.py
 from fastapi import FastAPI, Header, HTTPException, Depends, UploadFile, File, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse, HTMLResponse
 from pydantic import BaseModel, Field
 from typing import Literal, Optional, List, Dict, Any
 import os, json, math, asyncio, tempfile
 from pathlib import Path
 import httpx
+from utils.msg_load_save import DatabaseManager
+from fastapi.staticfiles import StaticFiles
 
 
 # =========================
@@ -421,6 +424,19 @@ async def rag_external_query_stream(request: RAGService, user_info: Dict[str, An
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"External RAG stream query failed: {str(e)}")
 
+# =========================
+# 挂载前端    路径目前为占位符 重构项目结构之后更改
+# =========================
+DIST_DIR = os.path.join("../Test/Frontend/dist(1)", "dist")
+app.mount("/", StaticFiles(directory=DIST_DIR, html=True), name="spa")
+"""
+@app.get("/{full_path:path}", response_class=HTMLResponse, include_in_schema=False)
+def spa_fallback(full_path: str):
+    file_path = Path("../Test/Frontend") / full_path
+    if file_path.is_file():
+        return FileResponse(str(file_path))
+    return FileResponse("../Test/Frontend/2025-9-15-chat_new_vhistory.html")
+"""
 
 # =========================
 # 本地直接运行
