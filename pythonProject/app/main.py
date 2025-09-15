@@ -6,6 +6,7 @@ from typing import Literal, Optional, List, Dict, Any
 import os, json, math, asyncio, tempfile
 from pathlib import Path
 import httpx
+from utils.msg_load_save import DatabaseManager
 
 
 # =========================
@@ -14,11 +15,16 @@ import httpx
 AUTH_BASE_URL = os.getenv("AUTH_BASE_URL", "http://192.168.2.30:8080")
 AUTH_VALIDATE_PATH = os.getenv("AUTH_VALIDATE_PATH", "/api/auth/validate")
 AUTH_TIMEOUT_S = float(os.getenv("AUTH_TIMEOUT_S", "5.0"))
+RAG_MODEL = os.getenv("RAG_MODEL", "llama3")
+RAG_CACHE_MODEL = os.getenv("RAG_CACHE_MODEL", "best_roberta_rnn_model_ent_aug")
+
 
 """
 AUTH_BASE_URL        验证服务基础URL，后端地址
 AUTH_VALIDATE_PATH   验证Token的接口路径
 AUTH_TIMEOUT_S       服务超时时间 
+RAG_MODEL            RAG模型名称
+RAG_CACHE_MODEL      RAG缓存模型名称
 """
 
 def _auth_url() -> str:
@@ -26,6 +32,21 @@ def _auth_url() -> str:
     返回路径
     """
     return f"{AUTH_BASE_URL.rstrip('/')}/{AUTH_VALIDATE_PATH.lstrip('/')}"
+
+# =========================
+# 请求模型
+# =========================
+class RAGRequest(BaseModel):
+    query: str = Field(..., description="用户查询内容")
+    model_choice: Optional[str] = Field(RAG_MODEL, description="使用的模型")
+    cache_model: Optional[str] = Field(RAG_CACHE_MODEL, description="缓存模型名称")
+
+class RAGResponse(BaseModel):
+    answer: str
+    query: str
+    model_used: str
+    timestamp: float
+
 
 # =========================
 # 鉴权工具
@@ -171,6 +192,10 @@ async def chat_ws(websocket: WebSocket):
 
     await websocket.accept()
     username = user_info.get("username", "unknown")
+    
+    # 初始化数据库管理器和会话
+    db_manager = DatabaseManager()
+    session_id = db_manager.create_session("AI_financial_assistant", username, "金融助手对话")
 
     try:
         while True:
@@ -205,6 +230,8 @@ async def chat_ws(websocket: WebSocket):
                     if m.get("role") == "user":
                         # 这里还没有实现记录历史，之后增加
                         text = m.get("content", "")
+                        # 保存用户消息到数据库
+                        db_manager.add_message(session_id, "user", text)
                         break
 
                 # 获取历史记录
@@ -215,8 +242,9 @@ async def chat_ws(websocket: WebSocket):
                 msgs = {"role": "user", "content": f"{text}"}
                 msgs = [prompt] + [{"role": h["role"], "content": h["content"]} for h in (history or []) if h.get("role") in {"user", "assistant"}] + [msgs]
 
-                # 调用模型
+
                 if os.getenv("Type")=="ollama":
+                    text_total = ""
                     for delta in "ollama功能还未实装---------请期待":
                         text_total = text_total + delta
                         await websocket.send_text(json.dumps({
@@ -237,8 +265,6 @@ async def chat_ws(websocket: WebSocket):
                 # 保存聊天记录
                 db.add_message(chat_id, "user", text)
                 db.add_message(chat_id, "assistant", text_total)
-
-
 
                 # 发送结束字段
                 await websocket.send_text(json.dumps({
@@ -341,6 +367,36 @@ async def get_chathistory(session_id: int, response_model=list[dict[str, Any]]):
     history = db.get_session_history(session_id)
     msgs = [{"role": h["role"], "content": h["content"]} for h in (history or []) if h.get("role") in {"user", "assistant"}]
     return msgs
+  
+  
+# =========================
+# lyy ----- 你待会自己写吧Ψ(￣∀￣)Ψ
+# =========================
+@app.post("/rag/query", response_model=RAGResponse)
+async def rag_query(
+        request: RAGRequest,
+        user_info: dict = Depends(bearer_auth)
+):
+    """RAG知识问答接口"""
+    if not rag_available:
+        raise HTTPException(status_code=503, detail="RAG component not available")
+
+    try:
+        import module.rag.QA as rag_qa
+        answer = rag_qa.generate_answer(
+            query=request.query,
+            model_choice=request.model_choice,
+            cache_model=request.cache_model
+        )
+        return RAGResponse(
+            answer=answer,
+            query=request.query,
+            model_used=request.model_choice,
+            timestamp=math.floor(asyncio.get_event_loop().time())
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"RAG query failed: {str(e)}")
+
 
 # =========================
 # 本地直接运行
