@@ -1,0 +1,10 @@
+# 切到脚本所在目录，再进入 app
+Set-Location -Path $PSScriptRoot
+Set-Location -Path ".\app"
+
+# 在新窗口启动 Python 后端（不会阻塞当前窗口）
+Start-Process -FilePath "python" -ArgumentList "main.py"
+
+# 稍等片刻再打开浏览器（可按需改动等待秒数）
+Start-Sleep -Seconds 1
+Start-Process "http://127.0.0.1:8000/index.html"
