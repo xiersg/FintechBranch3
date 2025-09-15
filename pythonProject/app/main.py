@@ -1,6 +1,7 @@
 # main.py
 from fastapi import FastAPI, Header, HTTPException, Depends, UploadFile, File, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from typing import Literal, Optional, List, Dict, Any
 import os, json, math, asyncio, tempfile
@@ -111,6 +112,18 @@ app.add_middleware(
 @app.get("/")
 async def root():
     return {"message": "服务正在运行喵"}
+
+# =========================
+# 挂载前端    路径目前为占位符 重构项目结构之后更改
+# =========================
+@app.get("/{full_path:path}")
+def spa(full_path: str):
+    frontend_file = os.listdir("../Test/Frontend")
+    if full_path in frontend_file:
+        return FileResponse(f"../Test/Frontend/{full_path}")
+    else:
+        return FileResponse("../Test/Frontend/2025-9-15-chat_new_vhistory.html")
+
 
 # =========================
 # 实例化
