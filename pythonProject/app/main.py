@@ -17,16 +17,11 @@ from fastapi.staticfiles import StaticFiles
 AUTH_BASE_URL = os.getenv("AUTH_BASE_URL", "http://192.168.2.30:8080")
 AUTH_VALIDATE_PATH = os.getenv("AUTH_VALIDATE_PATH", "/api/auth/validate")
 AUTH_TIMEOUT_S = float(os.getenv("AUTH_TIMEOUT_S", "5.0"))
-RAG_MODEL = os.getenv("RAG_MODEL", "llama3")
-RAG_CACHE_MODEL = os.getenv("RAG_CACHE_MODEL", "best_roberta_rnn_model_ent_aug")
-
 
 """
 AUTH_BASE_URL        验证服务基础URL，后端地址
 AUTH_VALIDATE_PATH   验证Token的接口路径
 AUTH_TIMEOUT_S       服务超时时间 
-RAG_MODEL            RAG模型名称
-RAG_CACHE_MODEL      RAG缓存模型名称
 """
 
 def _auth_url() -> str:
@@ -35,20 +30,14 @@ def _auth_url() -> str:
     """
     return f"{AUTH_BASE_URL.rstrip('/')}/{AUTH_VALIDATE_PATH.lstrip('/')}"
 
-# =========================
-# 请求模型
-# =========================
-class RAGRequest(BaseModel):
-    query: str = Field(..., description="用户查询内容")
-    model_choice: Optional[str] = Field(RAG_MODEL, description="使用的模型")
-    cache_model: Optional[str] = Field(RAG_CACHE_MODEL, description="缓存模型名称")
 
-class RAGResponse(BaseModel):
-    answer: str
-    query: str
-    model_used: str
-    timestamp: float
-
+# =========================
+# rag外部服务调用定义
+# =========================
+class RAGService(BaseModel):
+    query:str
+    model_choice: str = 'llama3'
+    cache_model: str = 'best_roberta_rnn_model_ent_aug'
 
 # =========================
 # 鉴权工具
@@ -126,8 +115,7 @@ def _lazy_init_heavy_components():
     """
     from module.Alternatives_API.API import DeepseekStreamer
     from module.anti_spoof.inference import AASISTDetector
-    from utils.msg_load_save import DatabaseManager
-    global ds, detector,db
+    global ds, detector
     ROOT = Path(__file__).resolve().parent
 
     # 先把服务跑起来，再加载 deepseek（如果它初始化会访问网络，就不会卡住启动）
@@ -135,7 +123,7 @@ def _lazy_init_heavy_components():
         ds = DeepseekStreamer(model="deepseek-chat")
         print("[startup] DeepseekStreamer 准备好了")
     except Exception as e:
-        print(f"[startup] DeepseekAPI 启动失败: {e}")
+        print(f"[startup] Deepseek init failed: {e}")
 
     # 再加载 AASIST（权重大，可能要几秒）
     conf = ROOT / "config" / "AASIST.conf"
@@ -152,15 +140,8 @@ def _lazy_init_heavy_components():
         print("[startup] AASISTDetector 准备好了")
     except Exception as e:
         # 打印出来好排查（不会让进程静默卡着）
-        print(f"[startup] AASIST 启动失败: {e}")
+        print(f"[startup] AASIST init failed: {e}")
         # 也可以选择 raise，让启动直接失败
-
-    try:
-        db = DatabaseManager(db_path=ROOT / "data" / "chat_data.db")
-        db.init_database()
-        print("[startup] DatabaseManager 准备好了")
-    except Exception as e:
-        print(f"[startup] DatabaseManager init failed: {e}")
 
 # =========================
 # WebSocket（对话流式）
@@ -194,10 +175,6 @@ async def chat_ws(websocket: WebSocket):
 
     await websocket.accept()
     username = user_info.get("username", "unknown")
-    
-    # 初始化数据库管理器和会话
-    db_manager = DatabaseManager()
-    session_id = db_manager.create_session("AI_financial_assistant", username, "金融助手对话")
 
     try:
         while True:
@@ -220,8 +197,7 @@ async def chat_ws(websocket: WebSocket):
 
             action = msg.get("action")          # 用于分支功能
             req_id = msg.get("request_id", "")  # request_id为对话id
-            payload = msg.get("payload", {})    # 请求的“有效载荷”，真正装业务数据的部分
-            chat_id = msg.get("chat_id", 1)
+            payload = msg.get("payload", {})    # 请求的"有效载荷"，真正装业务数据的部分
 
             if action == "chat.create":
                 await websocket.send_text(json.dumps({"type": "ack", "request_id": req_id}))
@@ -232,20 +208,58 @@ async def chat_ws(websocket: WebSocket):
                     if m.get("role") == "user":
                         # 这里还没有实现记录历史，之后增加
                         text = m.get("content", "")
-                        # 保存用户消息到数据库
-                        db_manager.add_message(session_id, "user", text)
                         break
 
-                # 获取历史记录
-                prompt = {"role":"system","content":str("""
-                    你是一个金融助手，需要全力劝阻用户进行高风险金融活动，并且需要耐心，客观的分析用户行为的利害。
-                """)}
-                history = db.get_session_history(chat_id,limit=20)
-                msgs = {"role": "user", "content": f"{text}"}
-                msgs = [prompt] + [{"role": h["role"], "content": h["content"]} for h in (history or []) if h.get("role") in {"user", "assistant"}] + [msgs]
-
-
-                if os.getenv("Type")=="ollama":
+                # 检查是否是RAG查询请求
+                is_rag_query = "rag" in text.lower() or "查询" in text.lower() or "诈骗" in text.lower()
+                
+                if is_rag_query and os.getenv("USE_EXTERNAL_RAG", "false").lower() == "true":
+                    # 使用外部 RAG 服务
+                    RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", "http://192.168.1.254:11434/api/generate")
+                    rag_payload = {
+                        "model": "llama3",
+                        "prompt": text,
+                        "stream": True
+                    }
+                    
+                    try:
+                        async with httpx.AsyncClient(timeout=30.0) as client:
+                            async with client.stream("POST", RAG_SERVICE_URL, json=rag_payload) as response:
+                                if response.status_code == 200:
+                                    text_total = ""
+                                    async for line in response.aiter_lines():
+                                        if line:
+                                            try:
+                                                data = json.loads(line)
+                                                if "response" in data:
+                                                    delta = data["response"]
+                                                    text_total += delta
+                                                    await websocket.send_text(json.dumps({
+                                                        "type": "delta",
+                                                        "request_id": req_id,
+                                                        "data": {"index": 0, "delta": delta}}))
+                                                    await asyncio.sleep(0)
+                                            except json.JSONDecodeError:
+                                                continue
+                                else:
+                                    # 如果外部服务出错，使用默认回复
+                                    error_msg = "抱歉，暂时无法查询相关信息。"
+                                    for delta in error_msg:
+                                        await websocket.send_text(json.dumps({
+                                            "type": "delta",
+                                            "request_id": req_id,
+                                            "data": {"index": 0, "delta": delta}}))
+                                        await asyncio.sleep(0)
+                    except Exception as e:
+                        # 如果外部服务不可用，使用默认回复
+                        error_msg = "抱歉，查询服务暂时不可用。"
+                        for delta in error_msg:
+                            await websocket.send_text(json.dumps({
+                                "type": "delta",
+                                "request_id": req_id,
+                                "data": {"index": 0, "delta": delta}}))
+                            await asyncio.sleep(0)
+                elif os.getenv("Type")=="ollama":
                     text_total = ""
                     for delta in "ollama功能还未实装---------请期待":
                         text_total = text_total + delta
@@ -253,20 +267,6 @@ async def chat_ws(websocket: WebSocket):
                             "type": "delta",
                             "request_id": req_id,
                             "data": {"index": 0, "delta": delta}}))
-                else:
-                    text_total = ""
-                    for delta in ds.stream_chat(msgs,temperature = 0.3):
-                        text_total = text_total + delta
-                        print(delta, end="", flush=True)
-                        await websocket.send_text(json.dumps({
-                            "type": "delta",
-                            "request_id": req_id,
-                            "data": {"index": 0, "delta": delta}}))
-                        await asyncio.sleep(0)
-
-                # 保存聊天记录
-                db.add_message(chat_id, "user", text)
-                db.add_message(chat_id, "assistant", text_total)
 
                 # 发送结束字段
                 await websocket.send_text(json.dumps({
@@ -296,6 +296,7 @@ async def chat_ws(websocket: WebSocket):
 # =========================
 # 语音克隆检查
 # =========================
+
 @app.post("/anti_spoof_score")
 async def score(file: UploadFile = File(...)):
     """
@@ -345,59 +346,83 @@ async def score(file: UploadFile = File(...)):
         try: os.remove(tmp_path)
         except: pass
 
-
 # =========================
-# 获取所有对话名和ID
+# RAG服务调用接口
 # =========================
-@app.get("/get_chathistory_name")
-async def get_chathistory_name() -> Dict[str, Any]:
-
-    # 因为暂时没有做用户登录，所有这里省去了区分用户
-    available_sessions = db.get_available_sessions()
-
-    # 获取历史对话列表
-    history_name = {}
-    for dt in available_sessions:
-        history_name[dt["name"]] = dt.get("session_id")
-    return history_name
-
-# =========================
-# 获取chat_id下所有聊天
-# =========================
-@app.get("/get_chathistory")
-async def get_chathistory(session_id: int, response_model=list[dict[str, Any]]):
-    history = db.get_session_history(session_id)
-    msgs = [{"role": h["role"], "content": h["content"]} for h in (history or []) if h.get("role") in {"user", "assistant"}]
-    return msgs
-  
-  
-# =========================
-# lyy ----- 你待会自己写吧Ψ(￣∀￣)Ψ
-# =========================
-@app.post("/rag/query", response_model=RAGResponse)
-async def rag_query(
-        request: RAGRequest,
-        user_info: dict = Depends(bearer_auth)
-):
-    """RAG知识问答接口"""
-    if not rag_available:
-        raise HTTPException(status_code=503, detail="RAG component not available")
+@app.post("/rag/external_query")
+async def rag_external_query(request: RAGService, user_info: Dict[str, Any] = Depends(bearer_auth)):
+    """
+    调用外部 RAG 服务进行查询
+    """
+    RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", "http://localhost:11434/api/generate")
 
     try:
-        import module.rag.QA as rag_qa
-        answer = rag_qa.generate_answer(
-            query=request.query,
-            model_choice=request.model_choice,
-            cache_model=request.cache_model
-        )
-        return RAGResponse(
-            answer=answer,
-            query=request.query,
-            model_used=request.model_choice,
-            timestamp=math.floor(asyncio.get_event_loop().time())
-        )
+        # 构建发送给外部 RAG 服务的请求
+        rag_payload = {
+            "model": request.model_choice,
+            "prompt": request.query,
+            "stream": False
+        }
+
+        # 调用外部 RAG 服务
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(RAG_SERVICE_URL, json=rag_payload)
+
+        if response.status_code == 200:
+            rag_result = response.json()
+            return {
+                "query": request.query,
+                "answer": rag_result.get("response", ""),
+                "meta": {"processed_by": f"external_rag:{user_info.get('username', 'unknown')}"}
+            }
+        else:
+            raise HTTPException(status_code=502, detail=f"External RAG service error: {response.status_code}")
+
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=503, detail=f"Cannot connect to external RAG service: {str(e)}")
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"RAG query failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"External RAG query failed: {str(e)}")
+
+
+@app.post("/rag/external_query_stream")
+async def rag_external_query_stream(request: RAGService, user_info: Dict[str, Any] = Depends(bearer_auth)):
+    """
+    调用外部 RAG 服务进行流式查询
+    """
+    RAG_SERVICE_URL = os.getenv("RAG_SERVICE_URL", "http://192.168.1.254:11434/api/generate")
+
+    try:
+        # 构建发送给外部 RAG 服务的请求
+        rag_payload = {
+            "model": request.model_choice,
+            "prompt": request.query,
+            "stream": True
+        }
+
+        async def generate():
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    async with client.stream("POST", RAG_SERVICE_URL, json=rag_payload) as response:
+                        if response.status_code == 200:
+                            async for line in response.aiter_lines():
+                                if line:
+                                    try:
+                                        data = json.loads(line)
+                                        if "response" in data:
+                                            yield data["response"]
+                                    except json.JSONDecodeError:
+                                        continue
+                        else:
+                            yield json.dumps({"error": f"External RAG service error: {response.status_code}"})
+            except httpx.RequestError as e:
+                yield json.dumps({"error": f"Cannot connect to external RAG service: {str(e)}"})
+            except Exception as e:
+                yield json.dumps({"error": f"External RAG stream failed: {str(e)}"})
+
+        return generate()
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"External RAG stream query failed: {str(e)}")
 
 # =========================
 # 挂载前端    路径目前为占位符 重构项目结构之后更改
