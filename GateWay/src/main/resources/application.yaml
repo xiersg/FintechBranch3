@@ -1,0 +1,62 @@
+server:
+  port: 10010
+
+spring:
+  application:
+    name: GateWay
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 127.0.0.1:18375
+    gateway:
+      httpclient:
+        connect-timeout: 60000 # 连接超时时间，单位毫秒
+        response-timeout: 60000 # 响应超时时间，单位毫秒
+      # 全局配置
+      # 配置全局跨域
+      globalcors:
+        add-to-simple-url-handler-mapping: true
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:10010"
+            allowedMethods:
+              - "GET"
+              - "POST"
+              - "PUT"
+              - "DELETE"
+              - "OPTIONS"
+            allowedHeaders: "*"
+            allowCredentials: true
+            maxAge: 36000
+      routes:
+        # 登录认证服务
+        - id: AuthenticationService
+          uri: lb://AuthenticationService
+          # uri: http://localhost:8082
+          predicates:
+            - Path=/user/**
+            # - After=2026-01-20T17:42:47.789-07:00[America/Denver]
+          filters:
+            - AddRequestHeader=X-Request-Source, InfiniteChat-GateWay
+            - AddResponseHeader=X-Response-Source, InfiniteChat-GateWay
+
+        #  管理用户服务
+        - id: ManageUserService
+          uri: lb://ManageUserService
+          predicates:
+            - Path=/admin/**
+
+        #  投诉服务
+        - id: ComplaintService
+          uri: lb://ComplaintService
+          predicates:
+            - Path=/complaint/**
+wuxuan:
+  auth:
+    exclude-paths:
+      - /user/login
+      - /user/loginCode
+      - /user/register
+      - /user/common/getCode
+      - /user/changePassword

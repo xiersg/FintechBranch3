@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.financialFinShieldGuard</groupId>
+    <artifactId>Gold</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
+    <name>Gold</name>
+    <description>金盾卫士</description>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>GateWay</module>
+        <module>AuthenticationService</module>
+        <module>ManageUserService</module>
+        <module>ComplaintService</module>
+        <module>Gold-pojo</module>
+        <module>Gold-parent</module>
+        <module>Gold-utils</module>
+        <module>hwei-obs-spring-boot-starter</module>
+        <module>hwei-obs-spring-boot-autoconfigure</module>
+    </modules>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>2.7.12</version>
+        <relativePath/>
+    </parent>
+
+    <properties>
+        <spring-boot.version>2.6.13</spring-boot.version>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <org.projectlombok.version>1.18.20</org.projectlombok.version>
+        <spring-cloud.version>5.0.0-M2</spring-cloud.version>
+        <spring-cloud-alibaba.version>2021.0.4.0</spring-cloud-alibaba.version>
+        <mybatis-plus.version>3.4.3</mybatis-plus.version>
+        <hutool.version>5.8.11</hutool.version>
+        <mysql.version>8.0.23</mysql.version>
+    </properties>
+
+
+    <dependencies>
+<!--        <dependency>-->
+<!--            <groupId>javax.xml.bind</groupId>-->
+<!--            <artifactId>jaxb-api</artifactId>-->
+<!--            <version>2.3.1</version>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>jakarta.xml.bind</groupId>-->
+<!--            <artifactId>jakarta.xml.bind-api</artifactId>-->
+<!--            <version>3.0.1</version>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>org.glassfish.jaxb</groupId>-->
+<!--            <artifactId>jaxb-runtime</artifactId>-->
+<!--            <version>3.0.1</version>-->
+<!--        </dependency>-->
+
+<!--        <dependency>-->
+<!--            <groupId>org.springframework.boot</groupId>-->
+<!--            <artifactId>spring-boot-starter</artifactId>-->
+<!--        </dependency>-->
+
+<!--        &lt;!&ndash;        nacos服务发现依赖&ndash;&gt;-->
+<!--        <dependency>-->
+<!--            <groupId>com.alibaba.cloud</groupId>-->
+<!--            <artifactId>spring-cloud-starter-alibaba-nacos-discovery</artifactId>-->
+<!--            <version>2021.0.5.0</version>-->
+<!--        </dependency>-->
+<!--        &lt;!&ndash;        参数校验&ndash;&gt;-->
+<!--        <dependency>-->
+<!--            <groupId>org.springframework.boot</groupId>-->
+<!--            <artifactId>spring-boot-starter-validation</artifactId>-->
+<!--        </dependency>-->
+<!--        &lt;!&ndash;        雪花算法&ndash;&gt;-->
+<!--        <dependency>-->
+<!--            <groupId>cn.hutool</groupId>-->
+<!--            <artifactId>hutool-all</artifactId>-->
+<!--            <version>5.8.24</version>-->
+<!--        </dependency>-->
+<!--        &lt;!&ndash;数据库持久层&ndash;&gt;-->
+<!--        <dependency>-->
+<!--            <groupId>com.baomidou</groupId>-->
+<!--            <artifactId>mybatis-plus-extension</artifactId>-->
+<!--            <version>3.5.1</version>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>com.baomidou</groupId>-->
+<!--            <artifactId>mybatis-plus-generator</artifactId>-->
+<!--            <version>3.5.2</version>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>com.baomidou</groupId>-->
+<!--            <artifactId>mybatis-plus-boot-starter</artifactId>-->
+<!--            <version>3.5.2</version>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>org.projectlombok</groupId>-->
+<!--            <artifactId>lombok</artifactId>-->
+<!--            <version>1.18.38</version>-->
+<!--            <optional>true</optional>-->
+<!--        </dependency>-->
+
+
+
+    </dependencies>
+    <!--    对依赖包版本进行管理-->
+    <dependencyManagement>
+        <dependencies>
+
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!--            spring cloud-->
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-build-dependencies</artifactId>
+                <version>${spring-cloud.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <!--            spring cloud alibaba-->
+            <dependency>
+                <groupId>com.alibaba.cloud</groupId>
+                <artifactId>spring-cloud-alibaba-dependencies</artifactId>
+                <version>${spring-cloud-alibaba.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-web</artifactId>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+</project>

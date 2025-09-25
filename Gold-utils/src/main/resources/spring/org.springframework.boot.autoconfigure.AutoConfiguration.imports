@@ -1,0 +1,4 @@
+com.financialfinishieldguard.gateutils.config.MvcConfig
+com.financialfinishieldguard.gateutils.config.CorsConfig
+com.financialfinishieldguard.gateutils.config.AppConfig
+com.financialfinishieldguard.gateutils.config.InterceptorAutoConfiguration

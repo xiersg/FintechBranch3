@@ -1,0 +1,3 @@
+org.springframework.boot.autoconfigure.AutoConfiguration.imports=\
+com.financialfinishieldguard.gateutils.config.MvcConfig,\
+  com.financialfinishieldguard.gateutils.config.InterceptorAutoConfiguration

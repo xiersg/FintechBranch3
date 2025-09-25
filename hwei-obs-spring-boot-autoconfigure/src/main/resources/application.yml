@@ -1,0 +1,6 @@
+hwy:
+  obs:
+    access-key: HPUAIQZRXY5HY5JNGMVW
+    secret-key: haYSyf9xHP2RK4e0eTLOfkRMP9pCq7fot8FQ6d3M
+    bucket-name: wushuangok
+    end-point: obs.cn-south-1.myhuaweicloud.com
