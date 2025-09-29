@@ -14,6 +14,7 @@
         <module>AuthenticationService</module>
         <module>ManageUserService</module>
         <module>ComplaintService</module>
+        <module>AiService</module>
         <module>Gold-pojo</module>
         <module>Gold-parent</module>
         <module>Gold-utils</module>

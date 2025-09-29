@@ -52,6 +52,14 @@ spring:
           uri: lb://ComplaintService
           predicates:
             - Path=/complaint/**
+
+        #  AI服务
+        - id: AiService
+          uri: lb://AiService
+          predicates:
+            - Path=/ai/**
+
+
 wuxuan:
   auth:
     exclude-paths:
