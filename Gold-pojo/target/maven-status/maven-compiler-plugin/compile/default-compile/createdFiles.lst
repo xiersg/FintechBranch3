@@ -1,3 +1,4 @@
+com\financialfinishieldguard\data\complaint\GetComplaintsInfoVO.class
 com\financialfinishieldguard\data\user\updateAvatar\UpdateAvatarDTO.class
 com\financialfinishieldguard\data\user\getUserInfo\GetUserInfoVO.class
 com\financialfinishieldguard\data\user\changePassword\ChangePasswordDTO.class
@@ -10,6 +11,7 @@ com\financialfinishieldguard\data\user\login\LoginDTO.class
 com\financialfinishieldguard\entity\Complaints.class
 com\financialfinishieldguard\data\complaint\ComplaintDTO.class
 com\financialfinishieldguard\entity\OperateLog.class
+com\financialfinishieldguard\data\complaint\ComplaintInfo.class
 com\financialfinishieldguard\data\manageUser\updateUser\UpdateUserDTO.class
 com\financialfinishieldguard\data\common\Result.class
 com\financialfinishieldguard\data\common\uploadUrl\UploadUrlDTO.class

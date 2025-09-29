@@ -5,7 +5,7 @@ import com.financialfinishieldguard.data.common.sms.SMSDTO;
 import com.financialfinishieldguard.data.common.sms.SMSVO;
 import com.financialfinishieldguard.data.common.uploadUrl.UploadUrlDTO;
 import com.financialfinishieldguard.data.common.uploadUrl.UploadUrlVO;
-import com.financialfinishieldguard.gateutils.constants.ExceptionConstant;
+import com.financialfinishieldguard.gateutils.constants.user.ErrorEnum;
 import com.financialfinishieldguard.gateutils.constants.user.redisConstant;
 import com.financialfinishieldguard.gateutils.utils.RandomNumUtil;
 import com.financialfinishieldguard.gateutils.utils.SendMailUtil;
@@ -58,7 +58,7 @@ public class CommonServiceImpl implements CommonService {
         } else if (redisConstant.CHANGEPASSWORD.equals(type)) {
             prefix = redisConstant.CHANGEPASSWORD_CODE;
         } else {
-            throw new CodeException(ExceptionConstant.NOT_CORRECT_TYPE);
+            throw new CodeException(ErrorEnum.NOT_CORRECT_TYPE);
         }
         redisTemplate.opsForValue().set(prefix + targetMail, code, 60, TimeUnit.SECONDS);
         SendMailUtil.sendEmailCode(targetMail, code);

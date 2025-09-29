@@ -15,6 +15,7 @@ public enum ErrorEnum {
     JWT_ERROR(40006, "jwt令牌无法正确解析"),
     ROLE_ERROR(40007, "用户role为空"),
     ROLE_NOT_PERMISSION(40008, "用户role无权限"),
+    NOT_CORRECT_TYPE(40009, "传入的type类型未知"),
 
     SYSTEM_ERROR(50000, "系统内部异常"),
     UPDATE_AVATAR_ERROR(50001, "用户更新头像失败"),

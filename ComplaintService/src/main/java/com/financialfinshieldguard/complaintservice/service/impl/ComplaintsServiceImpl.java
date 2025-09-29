@@ -2,14 +2,13 @@ package com.financialfinshieldguard.complaintservice.service.impl;
 
 import cn.hutool.core.lang.Snowflake;
 import cn.hutool.core.util.IdUtil;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.financialfinishieldguard.data.complaint.ComplaintDTO;
 import com.financialfinishieldguard.data.complaint.ComplaintInfo;
 import com.financialfinishieldguard.data.complaint.ComplaintVO;
 import com.financialfinishieldguard.data.complaint.GetComplaintsInfoVO;
 import com.financialfinishieldguard.entity.Complaints;
-import com.financialfinishieldguard.gateutils.constants.ExceptionConstant;
+import com.financialfinishieldguard.gateutils.constants.user.ErrorEnum;
 import com.financialfinishieldguard.gateutils.exception.DatabaseException;
 import com.financialfinshieldguard.complaintservice.service.ComplaintsService;
 import com.financialfinshieldguard.complaintservice.mapper.ComplaintsMapper;
@@ -37,7 +36,7 @@ public class ComplaintsServiceImpl extends ServiceImpl<ComplaintsMapper, Complai
 
         boolean isComplaintSave = this.save(complaints);
         if (!isComplaintSave) {
-            throw new DatabaseException(ExceptionConstant.DATABASE_ERROR);
+            throw new DatabaseException(ErrorEnum.DATABASE_ERROR);
         }
         return new ComplaintVO().setComplainted(isComplaintSave);
     }

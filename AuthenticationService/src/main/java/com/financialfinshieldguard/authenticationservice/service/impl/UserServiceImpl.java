@@ -18,7 +18,6 @@ import com.financialfinishieldguard.data.user.updateAvatar.UpdateAvatarVO;
 import com.financialfinishieldguard.data.user.updateUser.UpdateUserDTO;
 import com.financialfinishieldguard.data.user.updateUser.UpdateUserVO;
 import com.financialfinishieldguard.entity.User;
-import com.financialfinishieldguard.gateutils.constants.ExceptionConstant;
 import com.financialfinishieldguard.gateutils.constants.UserContext;
 import com.financialfinishieldguard.gateutils.constants.user.ErrorEnum;
 import com.financialfinishieldguard.gateutils.constants.user.UserDataBaseConstant;
@@ -85,7 +84,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
         boolean isUserSave = this.save(user);
         if (!isUserSave) {
-            throw new DatabaseException(ExceptionConstant.DATABASE_ERROR);
+            throw new DatabaseException(ErrorEnum.DATABASE_ERROR);
         }
 
 

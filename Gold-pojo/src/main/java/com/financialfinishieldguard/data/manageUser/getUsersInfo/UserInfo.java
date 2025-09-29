@@ -10,6 +10,11 @@ import java.time.LocalDateTime;
 public class UserInfo {
 
     /**
+     * 用户Id
+     */
+    private Long userId;
+
+    /**
      * 用户昵称
      */
     private String userName;

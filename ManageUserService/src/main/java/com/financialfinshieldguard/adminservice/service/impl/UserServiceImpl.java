@@ -13,8 +13,6 @@ import com.financialfinishieldguard.data.manageUser.getUsersInfo.UserInfo;
 import com.financialfinishieldguard.data.manageUser.updateUser.UpdateUserDTO;
 import com.financialfinishieldguard.data.manageUser.updateUser.UpdateUserVO;
 import com.financialfinishieldguard.entity.User;
-import com.financialfinishieldguard.gateutils.constants.ExceptionConstant;
-import com.financialfinishieldguard.gateutils.constants.UserContext;
 import com.financialfinishieldguard.gateutils.constants.enumm.RoleEnum;
 import com.financialfinishieldguard.gateutils.constants.user.ErrorEnum;
 import com.financialfinishieldguard.gateutils.constants.user.UserDataBaseConstant;
@@ -67,7 +65,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
         boolean isUserSave = this.save(user);
         if (!isUserSave) {
-            throw new DatabaseException(ExceptionConstant.DATABASE_ERROR);
+            throw new DatabaseException(ErrorEnum.DATABASE_ERROR);
         }
 
         return new AddUserVO().setEmail(email);
@@ -166,7 +164,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         QueryWrapper<User> queryWrapper = new QueryWrapper<User>().in(UserDataBaseConstant.USER_ID, ids);
         boolean removed = this.remove(queryWrapper);
         if (!removed) {
-            throw new DatabaseException(ExceptionConstant.DATABASE_ERROR);
+            throw new DatabaseException(ErrorEnum.DATABASE_ERROR);
         }
 
         DeleteUsersVO response = new DeleteUsersVO();

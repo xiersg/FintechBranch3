@@ -9,7 +9,6 @@ com\financialfinishieldguard\gateutils\constants\enumm\ConfigEnum.class
 com\financialfinishieldguard\gateutils\interceptors\UserInfoInterceptor.class
 com\financialfinishieldguard\gateutils\exception\UserException.class
 com\financialfinishieldguard\gateutils\utils\SendMailUtil.class
-com\financialfinishieldguard\gateutils\constants\ExceptionConstant.class
 com\financialfinishieldguard\gateutils\config\AppConfig.class
 com\financialfinishieldguard\gateutils\constants\user\redisConstant.class
 com\financialfinishieldguard\gateutils\constants\AuthConstant.class
