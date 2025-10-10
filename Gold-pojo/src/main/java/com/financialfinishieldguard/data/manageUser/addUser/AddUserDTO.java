@@ -26,6 +26,6 @@ public class AddUserDTO {
      * 用户名
      */
     @NotEmpty(message = "用户名不能为空")
-    private String username;
+    private String userName;
 
 }

@@ -45,7 +45,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     public AddUserVO addUser(AddUserDTO request) {
         String email = request.getEmail();
         String password = request.getPassword();
-        String username = request.getUsername();
+        String username = request.getUserName();
 
         if (isRegister(email)) {
             throw new UserException(ErrorEnum.REGISTER_ERROR);
