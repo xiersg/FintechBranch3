@@ -1,6 +1,7 @@
 package com.financialfinshieldguard.aiservice.service;
 
 import com.financialfinishieldguard.data.aiService.analyseAudio.AnalyseAudioVO;
+import com.financialfinishieldguard.data.aiService.analyseImage.AnalyseImageVO;
 import com.financialfinishieldguard.data.aiService.getCurrentUserDialogues.GetCurrentUserDialoguesVO;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -25,4 +26,11 @@ public interface AiService {
      * @return
      */
     AnalyseAudioVO analyseAudio(MultipartFile file);
+
+    /**
+     * 传图片文件，分析诈骗情况
+     * @param image
+     * @return
+     */
+    AnalyseImageVO analyseImage(MultipartFile image);
 }

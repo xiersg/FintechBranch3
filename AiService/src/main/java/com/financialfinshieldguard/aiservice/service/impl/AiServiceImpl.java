@@ -4,6 +4,7 @@ package com.financialfinshieldguard.aiservice.service.impl;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.financialfinishieldguard.data.aiService.analyseAudio.AnalyseAudioVO;
+import com.financialfinishieldguard.data.aiService.analyseImage.AnalyseImageVO;
 import com.financialfinishieldguard.data.aiService.getCurrentUserDialogues.GetCurrentUserDialoguesVO;
 import com.financialfinishieldguard.data.aiService.getCurrentUserDialogues.UserDialogueInfo;
 import com.financialfinishieldguard.gateutils.constants.UserContext;
@@ -161,20 +162,21 @@ public class AiServiceImpl implements AiService {
             // 创建请求对象
             HttpPost httpPost = new HttpPost("http://13425.free.idcfengye.com/anti_spoof_score");
 
-            // 创建音频文件对象
-            File audioFile = new File("C:\\Users\\20316\\Desktop\\test_audio.wav");
+//            // 创建音频文件对象
+//            File audioFile = new File("C:\\Users\\20316\\Desktop\\test_audio.wav");
 
-            if (!audioFile.exists() || !audioFile.isFile()) {
-                throw new IllegalArgumentException("文件不存在或不是一个有效的文件: " + audioFile.getAbsolutePath());
+            // 检查传入的文件是否为空
+            if (file == null || file.isEmpty()) {
+                throw new IllegalArgumentException("文件不能为空");
             }
 
             // 使用 MultipartEntityBuilder 构建请求体
             MultipartEntityBuilder builder = MultipartEntityBuilder.create();
             builder.addBinaryBody(
                     "file", // 参数名
-                    audioFile, // 音频文件对象
+                    file.getInputStream(), // 音频文件对象
                     ContentType.create("audio/wav"), // 音频文件的 MIME 类型
-                    audioFile.getName() // 音频文件名
+                    file.getOriginalFilename() // 音频文件名
             );
 
 //        // 添加其他参数
@@ -200,7 +202,6 @@ public class AiServiceImpl implements AiService {
 
             System.out.println("服务端返回的数据是: " +body);
 
-            // 将 JSON 数据转换为 UserDialogueInfo 的列表
             ObjectMapper objectMapper = new ObjectMapper();
             // 将JSON字符串转换为AnalyseAudioVO实体类
             //注意：这里可以直接转是因为body中的参数名与实体类中的名字一模一样！！！一一对应！！！
@@ -212,6 +213,77 @@ public class AiServiceImpl implements AiService {
 
             return analyseAudioVO;
         } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * 传图片文件，分析诈骗情况
+     * @param file
+     * @return
+     */
+    @Override
+    public AnalyseImageVO analyseImage(MultipartFile file) {
+        try {
+            // 创建 HttpClient 对象
+            CloseableHttpClient httpClient = HttpClients.createDefault();
+
+            // 使用 URIBuilder 构造带有查询参数的 URL
+            URIBuilder uriBuilder = new URIBuilder("http://13425.free.idcfengye.com/api/module2/process-image");
+            //传当前用户的ID
+            uriBuilder.addParameter("print_yn", "false");
+
+            // 获取 URI
+            URI uri = uriBuilder.build();
+
+            //创建请求对象
+            HttpPost httpPost = new HttpPost(uri);
+
+            // 检查传入的文件是否为空
+            if (file == null || file.isEmpty()) {
+                throw new IllegalArgumentException("文件不能为空");
+            }
+
+            // 使用 MultipartEntityBuilder 构建请求体
+            MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+            builder.addBinaryBody(
+                    "image", // 参数名
+                    file.getInputStream(), // 图片文件对象
+                    ContentType.create("image/png"), // 图片文件的 MIME 类型
+                    file.getOriginalFilename() // 图片文件名
+            );
+
+            // 构建 HttpEntity
+            HttpEntity multipartEntity = builder.build();
+
+            // 设置请求体
+            httpPost.setEntity(multipartEntity);
+            //发送请求
+            CloseableHttpResponse response = httpClient.execute(httpPost);
+            //解析返回结果
+            //获取服务端返回回来的状态码
+            int statusCode = response.getStatusLine().getStatusCode();
+
+            System.out.println("服务端返回的状态码: " +statusCode);
+
+            //获取服务端返回回来的响应体，然后通过一个工具类来解析这个响应体
+            HttpEntity entity1 = response.getEntity();
+            String body = EntityUtils.toString(entity1);
+
+            System.out.println("服务端返回的数据是: " +body);
+
+            ObjectMapper objectMapper = new ObjectMapper();
+            //注意：这里可以直接转是因为body中的参数名与实体类中的名字一模一样！！！一一对应！！！
+            AnalyseImageVO analyseImageVO = objectMapper.readValue(body, AnalyseImageVO.class);
+
+            //关闭资源
+            response.close();
+            httpClient.close();
+
+            return analyseImageVO;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } catch (URISyntaxException e) {
             throw new RuntimeException(e);
         }
     }

@@ -2,6 +2,7 @@ package com.financialfinshieldguard.aiservice.controller;
 
 
 import com.financialfinishieldguard.data.aiService.analyseAudio.AnalyseAudioVO;
+import com.financialfinishieldguard.data.aiService.analyseImage.AnalyseImageVO;
 import com.financialfinishieldguard.data.aiService.getCurrentUserDialogues.GetCurrentUserDialoguesVO;
 import com.financialfinishieldguard.data.common.Result;
 import com.financialfinshieldguard.aiservice.service.AiService;
@@ -56,4 +57,19 @@ public class AiServiceController {
 
         return Result.OK(response);
     }
+
+    /**
+     * 传图片文件，分析诈骗情况
+     * @param image
+     * @return
+     */
+    @PostMapping("/image")
+    public Result<AnalyseImageVO> analyseImage(MultipartFile image) {
+
+        AnalyseImageVO response = aiService.analyseImage(image);
+
+        return Result.OK(response);
+    }
+
+
 }
