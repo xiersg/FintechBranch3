@@ -7,8 +7,10 @@ import com.financialfinishieldguard.data.aiService.analyseAudio.AnalyseAudioVO;
 import com.financialfinishieldguard.data.aiService.analyseImage.AnalyseImageVO;
 import com.financialfinishieldguard.data.aiService.getCurrentUserDialogues.GetCurrentUserDialoguesVO;
 import com.financialfinishieldguard.data.aiService.getCurrentUserDialogues.UserDialogueInfo;
+import com.financialfinishieldguard.data.aiService.newDialogue.NewDialogueDTO;
 import com.financialfinishieldguard.gateutils.constants.UserContext;
 import com.financialfinshieldguard.aiservice.service.AiService;
+import com.financialfinshieldguard.aiservice.ws.ChatEndpoint;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -20,6 +22,7 @@ import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.File;
@@ -33,6 +36,9 @@ import java.util.stream.Collectors;
 @Slf4j
 @Service
 public class AiServiceImpl implements AiService {
+
+    @Autowired
+    private ChatEndpoint chatEndpoint;
 
     /**
      * 获取用户当前对话信息
@@ -106,7 +112,7 @@ public class AiServiceImpl implements AiService {
      * @return
      */
     @Override
-    public String getDialogue(Long sessionId) {
+    public void getDialogue(Long sessionId) {
         try {
             //创建httpclient对象
             CloseableHttpClient httpClients = HttpClients.createDefault();
@@ -136,10 +142,13 @@ public class AiServiceImpl implements AiService {
 
             System.out.println("服务端返回的数据是: " +body);
 
+//            // 通过WebSocket发送数据
+            chatEndpoint.sendMessageToUser(UserContext.getCurrentId(), body);
+
             response.close();
             httpClients.close();
 
-            return body;
+
 
         } catch (URISyntaxException e) {
             throw new RuntimeException(e);
@@ -161,9 +170,6 @@ public class AiServiceImpl implements AiService {
 
             // 创建请求对象
             HttpPost httpPost = new HttpPost("http://13425.free.idcfengye.com/anti_spoof_score");
-
-//            // 创建音频文件对象
-//            File audioFile = new File("C:\\Users\\20316\\Desktop\\test_audio.wav");
 
             // 检查传入的文件是否为空
             if (file == null || file.isEmpty()) {
@@ -284,6 +290,54 @@ public class AiServiceImpl implements AiService {
         } catch (IOException e) {
             throw new RuntimeException(e);
         } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * 生成一个新对话
+     * @param dialogueDTO
+     */
+    @Override
+    public String newDialogue(NewDialogueDTO dialogueDTO) {
+        try {
+            // 创建 HttpClient 对象
+            CloseableHttpClient httpClient = HttpClients.createDefault();
+            // 使用 URIBuilder 构造带有查询参数的 URL
+            URIBuilder uriBuilder = new URIBuilder("http://13425.free.idcfengye.com/api/new_chathistory");
+            uriBuilder.addParameter("user_id", dialogueDTO.getUserId().toString());
+            uriBuilder.addParameter("character_type", dialogueDTO.getCharacterType());
+            uriBuilder.addParameter("name", dialogueDTO.getName());
+            uriBuilder.addParameter("description", dialogueDTO.getDescription());
+
+            // 获取 URI
+            URI uri = uriBuilder.build();
+
+            //创建请求对象
+            HttpPost httpPost = new HttpPost(uri);
+
+            //发送请求
+            CloseableHttpResponse response = httpClient.execute(httpPost);
+            //解析返回结果
+            //获取服务端返回回来的状态码
+            int statusCode = response.getStatusLine().getStatusCode();
+
+            System.out.println("服务端返回的状态码: " +statusCode);
+
+            //获取服务端返回回来的响应体，然后通过一个工具类来解析这个响应体
+            HttpEntity entity1 = response.getEntity();
+            String body = EntityUtils.toString(entity1);
+
+            System.out.println("服务端返回的数据是: " +body);
+
+            //关闭资源
+            response.close();
+            httpClient.close();
+
+            return body;
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }

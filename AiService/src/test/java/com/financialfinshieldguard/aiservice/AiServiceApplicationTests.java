@@ -213,6 +213,47 @@ class AiServiceApplicationTests {
     }
 
 
+    /**
+     * 创建新对话
+     * @throws Exception
+     */
+    @Test
+    public void testNewDialoguePOST() throws Exception {
+        // 创建 HttpClient 对象
+        CloseableHttpClient httpClient = HttpClients.createDefault();
+        // 使用 URIBuilder 构造带有查询参数的 URL
+        URIBuilder uriBuilder = new URIBuilder("http://13425.free.idcfengye.com/api/new_chathistory");
+        uriBuilder.addParameter("user_id", "1");
+        uriBuilder.addParameter("character_type", "2");
+        uriBuilder.addParameter("name", "3");
+        uriBuilder.addParameter("description", "4");
+
+        // 获取 URI
+        URI uri = uriBuilder.build();
+
+        //创建请求对象
+        HttpPost httpPost = new HttpPost(uri);
+
+        //发送请求
+        CloseableHttpResponse response = httpClient.execute(httpPost);
+        //解析返回结果
+        //获取服务端返回回来的状态码
+        int statusCode = response.getStatusLine().getStatusCode();
+
+        System.out.println("服务端返回的状态码: " +statusCode);
+
+        //获取服务端返回回来的响应体，然后通过一个工具类来解析这个响应体
+        HttpEntity entity1 = response.getEntity();
+        String body = EntityUtils.toString(entity1);
+
+        System.out.println("服务端返回的数据是: " +body);
+
+        //关闭资源
+        response.close();
+        httpClient.close();
+    }
+
+
 
 
 }

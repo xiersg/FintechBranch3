@@ -3,6 +3,7 @@ package com.financialfinshieldguard.aiservice.service;
 import com.financialfinishieldguard.data.aiService.analyseAudio.AnalyseAudioVO;
 import com.financialfinishieldguard.data.aiService.analyseImage.AnalyseImageVO;
 import com.financialfinishieldguard.data.aiService.getCurrentUserDialogues.GetCurrentUserDialoguesVO;
+import com.financialfinishieldguard.data.aiService.newDialogue.NewDialogueDTO;
 import org.springframework.web.multipart.MultipartFile;
 
 public interface AiService {
@@ -18,7 +19,7 @@ public interface AiService {
      * @param sessionId
      * @return
      */
-    String getDialogue(Long sessionId);
+    void getDialogue(Long sessionId);
 
     /**
      * 传音频文件，判断AI率
@@ -33,4 +34,10 @@ public interface AiService {
      * @return
      */
     AnalyseImageVO analyseImage(MultipartFile image);
+
+    /**
+     * 生成一个新对话
+     * @param dialogueDTO
+     */
+    String newDialogue(NewDialogueDTO dialogueDTO);
 }

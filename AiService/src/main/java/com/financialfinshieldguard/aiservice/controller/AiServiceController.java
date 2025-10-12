@@ -1,9 +1,9 @@
 package com.financialfinshieldguard.aiservice.controller;
 
-
 import com.financialfinishieldguard.data.aiService.analyseAudio.AnalyseAudioVO;
 import com.financialfinishieldguard.data.aiService.analyseImage.AnalyseImageVO;
 import com.financialfinishieldguard.data.aiService.getCurrentUserDialogues.GetCurrentUserDialoguesVO;
+import com.financialfinishieldguard.data.aiService.newDialogue.NewDialogueDTO;
 import com.financialfinishieldguard.data.common.Result;
 import com.financialfinshieldguard.aiservice.service.AiService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +22,7 @@ public class AiServiceController {
 
     /**
      * 获取用户当前对话信息
+     *
      * @return
      */
     @GetMapping("/dialogues")
@@ -34,19 +35,21 @@ public class AiServiceController {
 
     /**
      * 获取当前选择的对话的记录
+     *
      * @param sessionId
      * @return
      */
     @GetMapping("/dialogue")
     public Result<String> getDialogue(Long sessionId) {
 
-        String resposne = aiService.getDialogue(sessionId);
+        aiService.getDialogue(sessionId);
 
-        return Result.OK(resposne);
+        return Result.OK();
     }
 
     /**
      * 传音频文件，判断AI率
+     *
      * @param file
      * @return
      */
@@ -60,6 +63,7 @@ public class AiServiceController {
 
     /**
      * 传图片文件，分析诈骗情况
+     *
      * @param image
      * @return
      */
@@ -67,6 +71,19 @@ public class AiServiceController {
     public Result<AnalyseImageVO> analyseImage(MultipartFile image) {
 
         AnalyseImageVO response = aiService.analyseImage(image);
+
+        return Result.OK(response);
+    }
+
+    /**
+     * 生成一个新对话
+     *
+     * @return
+     */
+    @PostMapping("/newDialogue")
+    public Result<String> newDialogue(NewDialogueDTO dialogueDTO) {
+
+        String response = aiService.newDialogue(dialogueDTO);
 
         return Result.OK(response);
     }

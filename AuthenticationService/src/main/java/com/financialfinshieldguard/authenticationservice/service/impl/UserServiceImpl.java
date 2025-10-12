@@ -172,7 +172,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         BeanUtils.copyProperties(user, response);
 
 
-        String token = JwtUtil.generate(response.getUserId(), response.getRole().toString());
+        String token = JwtUtil.generate(String.valueOf(response.getUserId()), response.getRole().toString());
         response.setToken(token);
 
         return response;
