@@ -3,6 +3,10 @@ package com.financialfinshieldguard.aiservice.service;
 import com.financialfinishieldguard.data.aiService.analyseAudio.AnalyseAudioVO;
 import com.financialfinishieldguard.data.aiService.analyseImage.AnalyseImageVO;
 import com.financialfinishieldguard.data.aiService.getCurrentUserDialogues.GetCurrentUserDialoguesVO;
+import com.financialfinishieldguard.data.aiService.module1Detect.Module1DetectDTO;
+import com.financialfinishieldguard.data.aiService.module1Detect.Module1DetectVO;
+import com.financialfinishieldguard.data.aiService.module2Detect.Module2DetectDTO;
+import com.financialfinishieldguard.data.aiService.module2Detect.Module2DetectVO;
 import com.financialfinishieldguard.data.aiService.newDialogue.NewDialogueDTO;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -19,14 +23,8 @@ public interface AiService {
      * @param sessionId
      * @return
      */
-    void getDialogue(Long sessionId);
+    String getDialogue(Long sessionId);
 
-    /**
-     * 传音频文件，判断AI率
-     * @param file
-     * @return
-     */
-    AnalyseAudioVO analyseAudio(MultipartFile file);
 
     /**
      * 传图片文件，分析诈骗情况
@@ -40,4 +38,18 @@ public interface AiService {
      * @param dialogueDTO
      */
     String newDialogue(NewDialogueDTO dialogueDTO);
+
+    /**
+     * 交易数据欺诈系数判定
+     * @param request
+     * @return
+     */
+    Module1DetectVO detect1(Module1DetectDTO request);
+
+    /**
+     * 对文本或图片url进行风险判定
+     * @param request
+     * @return
+     */
+    Module2DetectVO detect2(Module2DetectDTO request);
 }

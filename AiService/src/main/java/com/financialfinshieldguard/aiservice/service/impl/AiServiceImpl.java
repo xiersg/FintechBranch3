@@ -7,8 +7,13 @@ import com.financialfinishieldguard.data.aiService.analyseAudio.AnalyseAudioVO;
 import com.financialfinishieldguard.data.aiService.analyseImage.AnalyseImageVO;
 import com.financialfinishieldguard.data.aiService.getCurrentUserDialogues.GetCurrentUserDialoguesVO;
 import com.financialfinishieldguard.data.aiService.getCurrentUserDialogues.UserDialogueInfo;
+import com.financialfinishieldguard.data.aiService.module1Detect.Module1DetectDTO;
+import com.financialfinishieldguard.data.aiService.module1Detect.Module1DetectVO;
+import com.financialfinishieldguard.data.aiService.module2Detect.Module2DetectDTO;
+import com.financialfinishieldguard.data.aiService.module2Detect.Module2DetectVO;
 import com.financialfinishieldguard.data.aiService.newDialogue.NewDialogueDTO;
 import com.financialfinishieldguard.gateutils.constants.UserContext;
+import com.financialfinishieldguard.gateutils.exception.UserException;
 import com.financialfinshieldguard.aiservice.service.AiService;
 import com.financialfinshieldguard.aiservice.ws.ChatEndpoint;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +23,7 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
 import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.entity.ContentType;
+import org.apache.http.entity.StringEntity;
 import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
@@ -25,7 +31,7 @@ import org.apache.http.util.EntityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import java.io.File;
+
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -37,11 +43,10 @@ import java.util.stream.Collectors;
 @Service
 public class AiServiceImpl implements AiService {
 
-    @Autowired
-    private ChatEndpoint chatEndpoint;
 
     /**
      * 获取用户当前对话信息
+     *
      * @return
      */
     @Override
@@ -70,23 +75,25 @@ public class AiServiceImpl implements AiService {
             //获取服务端返回回来的状态码
             int statusCode = response.getStatusLine().getStatusCode();
 
-            System.out.println("服务端返回的状态码: " +statusCode);
+            System.out.println("服务端返回的状态码: " + statusCode);
 
             //获取服务端返回回来的响应体，然后通过一个工具类来解析这个响应体
             HttpEntity entity = response.getEntity();
             String body = EntityUtils.toString(entity);
 
-            System.out.println("服务端返回的数据是: " +body);
+            System.out.println("服务端返回的数据是: " + body);
 
             // 将 JSON 数据转换为 UserDialogueInfo 的列表
             ObjectMapper objectMapper = new ObjectMapper();
-            Map<String, Long> map = objectMapper.readValue(body, new TypeReference<Map<String, Long>>() {});
+            Map<String, Long> map = objectMapper.readValue(body, new TypeReference<Map<String, Long>>() {
+            });
 
             List<UserDialogueInfo> userDialogueInfoList = map.entrySet().stream()
                     .map(entry -> new UserDialogueInfo()
                             .setDialogueName(entry.getKey())
                             .setDialogueId(entry.getValue()))
-                    .collect(Collectors.toList());;
+                    .collect(Collectors.toList());
+            ;
 
             // 输出转换后的列表
             log.info("转换后的userDialogueInfoList：{}", userDialogueInfoList);
@@ -108,11 +115,12 @@ public class AiServiceImpl implements AiService {
 
     /**
      * 获取当前选择的对话的记录
+     *
      * @param sessionId
      * @return
      */
     @Override
-    public void getDialogue(Long sessionId) {
+    public String getDialogue(Long sessionId) {
         try {
             //创建httpclient对象
             CloseableHttpClient httpClients = HttpClients.createDefault();
@@ -134,21 +142,24 @@ public class AiServiceImpl implements AiService {
             //获取服务端返回回来的状态码
             int statusCode = response.getStatusLine().getStatusCode();
 
-            System.out.println("服务端返回的状态码: " +statusCode);
+            System.out.println("服务端返回的状态码: " + statusCode);
 
             //获取服务端返回回来的响应体，然后通过一个工具类来解析这个响应体
             HttpEntity entity = response.getEntity();
             String body = EntityUtils.toString(entity);
 
-            System.out.println("服务端返回的数据是: " +body);
+            System.out.println("服务端返回的数据是: " + body);
 
-//            // 通过WebSocket发送数据
-            chatEndpoint.sendMessageToUser(UserContext.getCurrentId(), body);
+////            // 通过WebSocket发送数据
+//            chatEndpoint.sendMessageToUser(body);
+
+
+            //直接返回给前端就行
 
             response.close();
             httpClients.close();
 
-
+            return body;
 
         } catch (URISyntaxException e) {
             throw new RuntimeException(e);
@@ -157,74 +168,10 @@ public class AiServiceImpl implements AiService {
         }
     }
 
-    /**
-     * 传音频文件，判断AI率
-     * @param file
-     * @return
-     */
-    @Override
-    public AnalyseAudioVO analyseAudio(MultipartFile file) {
-        try {
-            // 创建 HttpClient 对象
-            CloseableHttpClient httpClient = HttpClients.createDefault();
-
-            // 创建请求对象
-            HttpPost httpPost = new HttpPost("http://13425.free.idcfengye.com/anti_spoof_score");
-
-            // 检查传入的文件是否为空
-            if (file == null || file.isEmpty()) {
-                throw new IllegalArgumentException("文件不能为空");
-            }
-
-            // 使用 MultipartEntityBuilder 构建请求体
-            MultipartEntityBuilder builder = MultipartEntityBuilder.create();
-            builder.addBinaryBody(
-                    "file", // 参数名
-                    file.getInputStream(), // 音频文件对象
-                    ContentType.create("audio/wav"), // 音频文件的 MIME 类型
-                    file.getOriginalFilename() // 音频文件名
-            );
-
-//        // 添加其他参数
-//        builder.addTextBody("username", "admin", ContentType.TEXT_PLAIN);
-//        builder.addTextBody("password", "123456", ContentType.TEXT_PLAIN);
-
-            // 构建 HttpEntity
-            HttpEntity multipartEntity = builder.build();
-
-            // 设置请求体
-            httpPost.setEntity(multipartEntity);
-            //发送请求
-            CloseableHttpResponse response = httpClient.execute(httpPost);
-            //解析返回结果
-            //获取服务端返回回来的状态码
-            int statusCode = response.getStatusLine().getStatusCode();
-
-            System.out.println("服务端返回的状态码: " +statusCode);
-
-            //获取服务端返回回来的响应体，然后通过一个工具类来解析这个响应体
-            HttpEntity entity1 = response.getEntity();
-            String body = EntityUtils.toString(entity1);
-
-            System.out.println("服务端返回的数据是: " +body);
-
-            ObjectMapper objectMapper = new ObjectMapper();
-            // 将JSON字符串转换为AnalyseAudioVO实体类
-            //注意：这里可以直接转是因为body中的参数名与实体类中的名字一模一样！！！一一对应！！！
-            AnalyseAudioVO analyseAudioVO = objectMapper.readValue(body, AnalyseAudioVO.class);
-
-            //关闭资源
-            response.close();
-            httpClient.close();
-
-            return analyseAudioVO;
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     /**
      * 传图片文件，分析诈骗情况
+     *
      * @param file
      * @return
      */
@@ -270,13 +217,13 @@ public class AiServiceImpl implements AiService {
             //获取服务端返回回来的状态码
             int statusCode = response.getStatusLine().getStatusCode();
 
-            System.out.println("服务端返回的状态码: " +statusCode);
+            System.out.println("服务端返回的状态码: " + statusCode);
 
             //获取服务端返回回来的响应体，然后通过一个工具类来解析这个响应体
             HttpEntity entity1 = response.getEntity();
             String body = EntityUtils.toString(entity1);
 
-            System.out.println("服务端返回的数据是: " +body);
+            System.out.println("服务端返回的数据是: " + body);
 
             ObjectMapper objectMapper = new ObjectMapper();
             //注意：这里可以直接转是因为body中的参数名与实体类中的名字一模一样！！！一一对应！！！
@@ -296,6 +243,7 @@ public class AiServiceImpl implements AiService {
 
     /**
      * 生成一个新对话
+     *
      * @param dialogueDTO
      */
     @Override
@@ -303,6 +251,7 @@ public class AiServiceImpl implements AiService {
         try {
             // 创建 HttpClient 对象
             CloseableHttpClient httpClient = HttpClients.createDefault();
+
             // 使用 URIBuilder 构造带有查询参数的 URL
             URIBuilder uriBuilder = new URIBuilder("http://13425.free.idcfengye.com/api/new_chathistory");
             uriBuilder.addParameter("user_id", dialogueDTO.getUserId().toString());
@@ -322,13 +271,13 @@ public class AiServiceImpl implements AiService {
             //获取服务端返回回来的状态码
             int statusCode = response.getStatusLine().getStatusCode();
 
-            System.out.println("服务端返回的状态码: " +statusCode);
+            System.out.println("服务端返回的状态码: " + statusCode);
 
             //获取服务端返回回来的响应体，然后通过一个工具类来解析这个响应体
             HttpEntity entity1 = response.getEntity();
             String body = EntityUtils.toString(entity1);
 
-            System.out.println("服务端返回的数据是: " +body);
+            System.out.println("服务端返回的数据是: " + body);
 
             //关闭资源
             response.close();
@@ -338,6 +287,119 @@ public class AiServiceImpl implements AiService {
         } catch (URISyntaxException e) {
             throw new RuntimeException(e);
         } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * 交易数据欺诈系数判定
+     *
+     * @param request
+     * @return
+     */
+    @Override
+    public Module1DetectVO detect1(Module1DetectDTO request) {
+        try {
+            // 创建 HttpClient 对象
+            CloseableHttpClient httpClient = HttpClients.createDefault();
+
+            // 创建请求对象
+            HttpPost httpPost = new HttpPost("http://13425.free.idcfengye.com/api/module1/detect");
+
+            // 使用 ObjectMapper 将 Module1DetectDTO 转换为 JSON 字符串
+            ObjectMapper objectMapper = new ObjectMapper();
+            String json = objectMapper.writeValueAsString(request);
+
+            // 设置请求体
+            StringEntity requestEntity = new StringEntity(
+                    json,
+                    "UTF-8"
+            );
+            requestEntity.setContentType("application/json");
+            httpPost.setEntity(requestEntity);
+
+            //发送请求
+            CloseableHttpResponse response = httpClient.execute(httpPost);
+            //解析返回结果
+            //获取服务端返回回来的状态码
+            int statusCode = response.getStatusLine().getStatusCode();
+
+            System.out.println("服务端返回的状态码: " + statusCode);
+
+            //获取服务端返回回来的响应体，然后通过一个工具类来解析这个响应体
+            HttpEntity entity1 = response.getEntity();
+            String body = EntityUtils.toString(entity1);
+
+            System.out.println("服务端返回的数据是: " + body);
+
+            //注意：这里可以直接转是因为body中的参数名与实体类中的名字一模一样！！！一一对应！！！
+            Module1DetectVO module1DetectVO = objectMapper.readValue(body, Module1DetectVO.class);
+
+            //关闭资源
+            response.close();
+            httpClient.close();
+
+            return module1DetectVO;
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * 对文本或图片url进行风险判定
+     * @param request
+     * @return
+     */
+    @Override
+    public Module2DetectVO detect2(Module2DetectDTO request) {
+        //过滤
+        //服务端返回的数据是: {"detail":"错误: 400: content_type 仅支持 text/image"}
+        if (!request.getContent_type().equals("text") && !request.getContent_type().equals("image")) {
+            throw new UserException("content_type 仅支持 text/image");
+        }
+
+        try {
+            // 创建 HttpClient 对象
+            CloseableHttpClient httpClient = HttpClients.createDefault();
+
+            // 创建请求对象
+            HttpPost httpPost = new HttpPost("http://13425.free.idcfengye.com/api/module2/detect");
+
+            // 使用 ObjectMapper 将 Module1DetectDTO 转换为 JSON 字符串
+            ObjectMapper objectMapper = new ObjectMapper();
+            String json = objectMapper.writeValueAsString(request);
+
+            // 设置请求体
+            StringEntity requestEntity = new StringEntity(
+                    json,
+                    "UTF-8"
+            );
+            requestEntity.setContentType("application/json");
+            httpPost.setEntity(requestEntity);
+
+            //发送请求
+            CloseableHttpResponse response = httpClient.execute(httpPost);
+            //解析返回结果
+            //获取服务端返回回来的状态码
+            int statusCode = response.getStatusLine().getStatusCode();
+
+            System.out.println("服务端返回的状态码: " + statusCode);
+
+            //获取服务端返回回来的响应体，然后通过一个工具类来解析这个响应体
+            HttpEntity entity1 = response.getEntity();
+            String body = EntityUtils.toString(entity1);
+
+            System.out.println("服务端返回的数据是: " + body);
+
+            //注意：这里可以直接转是因为body中的参数名与实体类中的名字一模一样！！！一一对应！！！
+            Module2DetectVO module2DetectVO = objectMapper.readValue(body, Module2DetectVO.class);
+
+            //关闭资源
+            response.close();
+            httpClient.close();
+
+            return module2DetectVO;
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }

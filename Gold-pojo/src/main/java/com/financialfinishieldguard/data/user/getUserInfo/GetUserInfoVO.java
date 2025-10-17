@@ -12,6 +12,11 @@ import java.util.List;
 @Accessors(chain = true)
 public class GetUserInfoVO {
 
+    /**
+     * 用户Id
+     */
+    private Long userId;
+
 
     /**
      * 用户昵称

@@ -3,14 +3,15 @@ package com.financialfinshieldguard.aiservice.controller;
 import com.financialfinishieldguard.data.aiService.analyseAudio.AnalyseAudioVO;
 import com.financialfinishieldguard.data.aiService.analyseImage.AnalyseImageVO;
 import com.financialfinishieldguard.data.aiService.getCurrentUserDialogues.GetCurrentUserDialoguesVO;
+import com.financialfinishieldguard.data.aiService.module1Detect.Module1DetectDTO;
+import com.financialfinishieldguard.data.aiService.module1Detect.Module1DetectVO;
+import com.financialfinishieldguard.data.aiService.module2Detect.Module2DetectDTO;
+import com.financialfinishieldguard.data.aiService.module2Detect.Module2DetectVO;
 import com.financialfinishieldguard.data.aiService.newDialogue.NewDialogueDTO;
 import com.financialfinishieldguard.data.common.Result;
 import com.financialfinshieldguard.aiservice.service.AiService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 @RestController
@@ -42,27 +43,27 @@ public class AiServiceController {
     @GetMapping("/dialogue")
     public Result<String> getDialogue(Long sessionId) {
 
-        aiService.getDialogue(sessionId);
-
-        return Result.OK();
-    }
-
-    /**
-     * 传音频文件，判断AI率
-     *
-     * @param file
-     * @return
-     */
-    @PostMapping("/audio")
-    public Result<AnalyseAudioVO> analyseAudio(MultipartFile file) {
-
-        AnalyseAudioVO response = aiService.analyseAudio(file);
+        String response = aiService.getDialogue(sessionId);
 
         return Result.OK(response);
     }
 
+//    /**
+//     * 传音频文件，判断AI率(AI率结果由websocket响应)  前端是websocket传的，这个接口不用了
+//     *
+//     * @param file
+//     * @return
+//     */
+//    @PostMapping("/audio")
+//    public Result<AnalyseAudioVO> analyseAudio(MultipartFile file) {
+//
+//        aiService.analyseAudio(file);
+//
+//        return Result.OK();
+//    }
+
     /**
-     * 传图片文件，分析诈骗情况
+     * 传图片文件，分析诈骗情况(http响应)
      *
      * @param image
      * @return
@@ -88,5 +89,29 @@ public class AiServiceController {
         return Result.OK(response);
     }
 
+    /**
+     * 交易数据欺诈系数判定
+     * @param request
+     * @return
+     */
+    @PostMapping("/detect1")
+    public Result<Module1DetectVO> detect1(@RequestBody Module1DetectDTO request) {
+        Module1DetectVO response = aiService.detect1(request);
+
+        return Result.OK(response);
+    }
+
+
+    /**
+     * 交易数据欺诈系数判定
+     * @param request
+     * @return
+     */
+    @PostMapping("/detect2")
+    public Result<Module2DetectVO> detect2(@RequestBody Module2DetectDTO request) {
+        Module2DetectVO response = aiService.detect2(request);
+
+        return Result.OK(response);
+    }
 
 }

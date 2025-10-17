@@ -140,7 +140,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         // jwt : json web token
         //header.payload.signature
 
-        String token = JwtUtil.generate(String.valueOf(response.getUserId()),response.getRole().toString());
+        String token = JwtUtil.generate(String.valueOf(response.getUserId()), response.getRole().toString());
         response.setToken(token);
 
         return response;
@@ -179,8 +179,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     }
 
 
-
-
     @Override
     public ChangePasswordVO changePassword(ChangePasswordDTO request) {
         //校验验证码
@@ -208,9 +206,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
         return new ChangePasswordVO().setEmail(request.getEmail());
     }
-
-
-
 
 
     @Override
@@ -291,6 +286,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
     /**
      * 更新用户头像
+     *
      * @param request
      * @return
      */

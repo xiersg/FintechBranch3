@@ -5,10 +5,8 @@ import lombok.experimental.Accessors;
 
 @Data
 @Accessors(chain = true)
-public class Message {
-
-    private Boolean isSuccess;
+public class UserIdMessage {
+    private Long userId;
 
     private String message;
-
 }
