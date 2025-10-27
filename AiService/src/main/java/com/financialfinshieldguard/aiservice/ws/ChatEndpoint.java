@@ -1,11 +1,20 @@
 package com.financialfinshieldguard.aiservice.ws;
 
+import com.alibaba.fastjson.JSON;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.financialfinishieldguard.data.sessionService.saveMessage.SaveMessageDTO;
+import com.financialfinishieldguard.data.websocket.SingleMsg;
+import com.financialfinishieldguard.entity.SessionMessages;
 import com.financialfinishieldguard.gateutils.constants.AuthConstant;
 import com.financialfinishieldguard.gateutils.constants.MessageConstant;
+import com.financialfinishieldguard.gateutils.exception.UserException;
 import com.financialfinishieldguard.gateutils.utils.JwtUtil;
 import com.financialfinishieldguard.gateutils.utils.RandomNumUtil;
 import com.financialfinshieldguard.aiservice.config.GetTokenConfig;
 import com.financialfinshieldguard.aiservice.service.AiService;
+import com.financialfinshieldguard.aiservice.service.SessionMessagesService;
 import com.financialfinshieldguard.aiservice.service.impl.MessageManager;
 import io.jsonwebtoken.Claims;
 import lombok.extern.slf4j.Slf4j;
@@ -26,6 +35,10 @@ import javax.websocket.*;
 import javax.websocket.server.ServerEndpoint;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 
 @ServerEndpoint(value = "/chat", configurator = GetTokenConfig.class)
@@ -39,6 +52,8 @@ public class ChatEndpoint {
 
     private JwtUtil jwtUtil;
 
+    private SessionMessagesService sessionMessagesService;
+
     private Long userId;
 
     public static void setApplicationContext(ApplicationContext context) {
@@ -50,6 +65,7 @@ public class ChatEndpoint {
         // 手动获取 Bean
         this.jwtUtil = applicationContext.getBean(JwtUtil.class);
         this.messageManager = applicationContext.getBean(MessageManager.class);
+        this.sessionMessagesService = applicationContext.getBean(SessionMessagesService.class);
 
         //解析token，获取userId并保存
         String token = (String) config.getUserProperties().get(AuthConstant.TOKEN);
@@ -60,7 +76,7 @@ public class ChatEndpoint {
         messageManager.registerSession(userId, session);
 
         //响应成功信息
-        messageManager.sendMessageToUserByUserId(userId, MessageConstant.WS_OPEN);
+        messageManager.sendAIChatMessageToUserByUserId(userId, 0L, null, MessageConstant.WS_OPEN);
     }
 
     /**
@@ -70,10 +86,31 @@ public class ChatEndpoint {
      */
     @OnMessage
     public void onMessage(String message) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        SaveMessageDTO saveMessageDTO = null;
+        try {
+            saveMessageDTO = objectMapper.readValue(message, SaveMessageDTO.class);
+        } catch (JsonProcessingException e) {
+            throw new UserException("前端发送的websocket内容转为SaveMessageDTO失败！！！请检查结构数据正确性！！！");
+        }
+
         // 处理文本消息
         log.info("收到文本消息: " + message);
+        //保存消息
+        sessionMessagesService.saveMessage(1, saveMessageDTO);
+
+        //查询当前对话的所有历史信息
+        List<SessionMessages> historyMessage = sessionMessagesService.getHistoryBySessionIdToAI(saveMessageDTO.getSessionId());
+
+        List<String> result = historyMessage.stream().map(single -> {
+            SingleMsg msg = new SingleMsg().setContent(single.getContent()).setRole("user");
+            return JSON.toJSONString(msg);
+        }).collect(Collectors.toList());
+
+
         //通过ws传给AI
-        messageManager.sendMessageToUserByUserId(0L, message);
+        messageManager.sendAIChatMessageToAI(0L, saveMessageDTO.getSenderUserId(), saveMessageDTO.getSessionId(), result.toString());
+
     }
 
     /**
@@ -197,7 +234,7 @@ public class ChatEndpoint {
             System.out.println("服务端返回的数据是: " + body);
 
             //现在改成ws，本来就要传JSON结构，就不需要再转实体类了！直接把body发给前端
-            messageManager.sendMessageToUserByUserId(userId, body);
+            messageManager.sendAIChatMessageToUserByUserId(userId, 0L, null, body);
 
             //关闭资源
             response.close();

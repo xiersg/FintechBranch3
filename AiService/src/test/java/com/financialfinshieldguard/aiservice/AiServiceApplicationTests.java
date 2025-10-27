@@ -1,5 +1,6 @@
 package com.financialfinshieldguard.aiservice;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
@@ -15,10 +16,29 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.net.URI;
+import java.net.URL;
 
+@Slf4j
 @SpringBootTest
 class AiServiceApplicationTests {
+
+
+    @Test
+    public void testAIConnectivity() {
+        try {
+            URL url = new URL("ws://13425.free.idcfengye.com/ws");
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+            connection.setConnectTimeout(5000);
+            connection.setReadTimeout(5000);
+            int responseCode = connection.getResponseCode();
+            log.info("AI服务HTTP连通性测试结果: {}", responseCode);
+        } catch (Exception e) {
+            log.error("AI服务网络不可达: {}", e.getMessage());
+        }
+    }
 
     /**
      * 获取当前用户的对话记录

@@ -142,7 +142,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
         String token = JwtUtil.generate(String.valueOf(response.getUserId()), response.getRole().toString());
         response.setToken(token);
-
         return response;
     }
 
@@ -150,7 +149,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
     @Override
     public LoginCodeVO loginCode(LoginCodeDTO request) {
         // 去查redis code == redisCode
-        // 这里肯定是有个bug，和注册是同一个前缀！不过我看之后是会改动，这里明白就好！
         String key = redisConstant.LOGIN_CODE + request.getEmail();
         String redisCode = redisTemplate.opsForValue().get(key);
         if (redisCode == null || !redisCode.equals(request.getCode())) {

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.financialfinshieldguard.aiservice.mapper.SessionMessagesMapper">
+
+    <resultMap id="BaseResultMap" type="com.financialfinishieldguard.entity.SessionMessages">
+            <id property="id" column="id" />
+            <result property="sessionId" column="session_id" />
+            <result property="senderUserId" column="sender_user_id" />
+            <result property="messageType" column="message_type" />
+            <result property="content" column="content" />
+            <result property="createdAt" column="created_at" />
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id,session_id,sender_user_id,message_type,content,created_at
+    </sql>
+</mapper>

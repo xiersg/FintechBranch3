@@ -57,7 +57,8 @@ spring:
         - id: AiService
           uri: lb://AiService
           predicates:
-            - Path=/ai/**
+            - Path=/ai/**, /session/**
+
 #        - id: websocket-service
 #          uri: ws://127.0.0.1:6666
 #          predicates:

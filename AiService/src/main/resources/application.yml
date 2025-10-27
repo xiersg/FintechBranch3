@@ -63,7 +63,7 @@ hwy:
 ai:
   url:
 #    ai-server-url:
-    ai-webSocket-url: ws://shepdf.free.idcfengye.com/ws
+    ai-webSocket-url: ws://13425.free.idcfengye.com/ws
 
 # spring 事务管理日志
 logging:

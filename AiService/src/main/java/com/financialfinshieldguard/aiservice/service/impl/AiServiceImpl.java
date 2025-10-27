@@ -1,6 +1,8 @@
 package com.financialfinshieldguard.aiservice.service.impl;
 
 
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.financialfinishieldguard.data.aiService.analyseAudio.AnalyseAudioVO;
@@ -12,10 +14,11 @@ import com.financialfinishieldguard.data.aiService.module1Detect.Module1DetectVO
 import com.financialfinishieldguard.data.aiService.module2Detect.Module2DetectDTO;
 import com.financialfinishieldguard.data.aiService.module2Detect.Module2DetectVO;
 import com.financialfinishieldguard.data.aiService.newDialogue.NewDialogueDTO;
+import com.financialfinishieldguard.entity.User;
 import com.financialfinishieldguard.gateutils.constants.UserContext;
 import com.financialfinishieldguard.gateutils.exception.UserException;
+import com.financialfinshieldguard.aiservice.mapper.AiServiceMapper;
 import com.financialfinshieldguard.aiservice.service.AiService;
-import com.financialfinshieldguard.aiservice.ws.ChatEndpoint;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -31,7 +34,6 @@ import org.apache.http.util.EntityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -41,8 +43,17 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-public class AiServiceImpl implements AiService {
+public class AiServiceImpl extends ServiceImpl<AiServiceMapper, User> implements AiService {
 
+
+    private final AiServiceMapper aiServiceMapper;
+
+    @Autowired
+    private MessageManager messageManager;
+
+    public AiServiceImpl(AiServiceMapper aiServiceMapper) {
+        this.aiServiceMapper = aiServiceMapper;
+    }
 
     /**
      * 获取用户当前对话信息
@@ -400,6 +411,73 @@ public class AiServiceImpl implements AiService {
 
             return module2DetectVO;
         } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public List<String> getHumanCustomerUserIds() {
+        QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
+        userQueryWrapper.eq("role", 3);
+        List<User> list = this.list(userQueryWrapper);
+        List<String> userIds = list.stream().map(user -> String.valueOf(user.getUserId())).collect(Collectors.toList());
+        return userIds;
+    }
+
+    @Override
+    public AnalyseAudioVO analyseAudio(MultipartFile file) {
+        try {
+            // 创建 HttpClient 对象
+            CloseableHttpClient httpClient = HttpClients.createDefault();
+
+            // 创建请求对象
+            HttpPost httpPost = new HttpPost("http://13425.free.idcfengye.com/anti_spoof_score");
+
+            // 检查传入的文件是否为空
+            if (file == null || file.isEmpty()) {
+                throw new IllegalArgumentException("文件不能为空");
+            }
+
+            // 使用 MultipartEntityBuilder 构建请求体
+            MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+            builder.addBinaryBody(
+                    "file", // 参数名
+                    file.getInputStream(), // 音频文件对象
+                    ContentType.create("audio/wav"), // 音频文件的 MIME 类型
+                    file.getOriginalFilename() // 音频文件名
+            );
+
+            // 构建 HttpEntity
+            HttpEntity multipartEntity = builder.build();
+
+            // 设置请求体
+            httpPost.setEntity(multipartEntity);
+            //发送请求
+            CloseableHttpResponse response = httpClient.execute(httpPost);
+            //解析返回结果
+            //获取服务端返回回来的状态码
+            int statusCode = response.getStatusLine().getStatusCode();
+
+            System.out.println("服务端返回的状态码: " + statusCode);
+
+            //获取服务端返回回来的响应体，然后通过一个工具类来解析这个响应体
+            HttpEntity entity1 = response.getEntity();
+            String body = EntityUtils.toString(entity1);
+
+            System.out.println("服务端返回的数据是: " + body);
+
+//            //现在改成ws，本来就要传JSON结构，就不需要再转实体类了！直接把body发给前端
+//            messageManager.sendMessageToUserByUserId(UserContext.getCurrentId(), body);
+            ObjectMapper objectMapper = new ObjectMapper();
+            AnalyseAudioVO analyseAudioVO = objectMapper.readValue(body, AnalyseAudioVO.class);
+
+            //关闭资源
+            response.close();
+            httpClient.close();
+
+            return analyseAudioVO;
+
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }

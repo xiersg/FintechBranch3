@@ -5,13 +5,11 @@ import lombok.experimental.Accessors;
 
 @Data
 @Accessors(chain = true)
-public class WebsocketMessage {
+public class WebsocketToAIMessage {
 
-    private Long fromUserId;
+    private Long user_id;
 
-    private Long sessionId;
+    private Long session_id;
 
-    private String message;
-
-
+    private String content;
 }

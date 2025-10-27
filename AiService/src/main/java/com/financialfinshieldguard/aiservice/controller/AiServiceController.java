@@ -13,6 +13,9 @@ import com.financialfinshieldguard.aiservice.service.AiService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import org.w3c.dom.stylesheets.LinkStyle;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/ai")
@@ -48,19 +51,19 @@ public class AiServiceController {
         return Result.OK(response);
     }
 
-//    /**
-//     * 传音频文件，判断AI率(AI率结果由websocket响应)  前端是websocket传的，这个接口不用了
-//     *
-//     * @param file
-//     * @return
-//     */
-//    @PostMapping("/audio")
-//    public Result<AnalyseAudioVO> analyseAudio(MultipartFile file) {
-//
-//        aiService.analyseAudio(file);
-//
-//        return Result.OK();
-//    }
+    /**
+     * 传音频文件，判断AI率(AI率结果由websocket响应)  前端是websocket传的，这个接口不用了
+     *
+     * @param file
+     * @return
+     */
+    @PostMapping("/audio")
+    public Result<AnalyseAudioVO> analyseAudio(MultipartFile file) {
+
+        AnalyseAudioVO response = aiService.analyseAudio(file);
+
+        return Result.OK(response);
+    }
 
     /**
      * 传图片文件，分析诈骗情况(http响应)
@@ -110,6 +113,18 @@ public class AiServiceController {
     @PostMapping("/detect2")
     public Result<Module2DetectVO> detect2(@RequestBody Module2DetectDTO request) {
         Module2DetectVO response = aiService.detect2(request);
+
+        return Result.OK(response);
+    }
+
+    /**
+     * 获取客服的userIds
+     * @return
+     */
+    @GetMapping("/getHumanCustomer")
+    public Result<List<String>> getHumanCustomerUserIds() {
+
+         List<String> response = aiService.getHumanCustomerUserIds();
 
         return Result.OK(response);
     }

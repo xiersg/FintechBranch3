@@ -10,6 +10,8 @@ import com.financialfinishieldguard.data.aiService.module2Detect.Module2DetectVO
 import com.financialfinishieldguard.data.aiService.newDialogue.NewDialogueDTO;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.List;
+
 public interface AiService {
 
     /**
@@ -52,4 +54,12 @@ public interface AiService {
      * @return
      */
     Module2DetectVO detect2(Module2DetectDTO request);
+
+    /**
+     * 获取客服的userIds
+     * @return
+     */
+    List<String> getHumanCustomerUserIds();
+
+    AnalyseAudioVO analyseAudio(MultipartFile file);
 }

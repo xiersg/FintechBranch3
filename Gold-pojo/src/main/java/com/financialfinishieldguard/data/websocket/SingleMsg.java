@@ -3,15 +3,13 @@ package com.financialfinishieldguard.data.websocket;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
+import java.util.List;
+
 @Data
 @Accessors(chain = true)
-public class WebsocketMessage {
+public class SingleMsg {
 
-    private Long fromUserId;
+    private String role;
 
-    private Long sessionId;
-
-    private String message;
-
-
+    private String content;
 }

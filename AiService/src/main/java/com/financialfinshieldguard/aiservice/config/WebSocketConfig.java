@@ -2,6 +2,8 @@ package com.financialfinshieldguard.aiservice.config;
 
 import com.financialfinishieldguard.gateutils.utils.JwtUtil;
 import com.financialfinshieldguard.aiservice.ws.ChatEndpoint;
+import com.financialfinshieldguard.aiservice.ws.ClientEndpointToAI;
+import com.financialfinshieldguard.aiservice.ws.HumanCustomerEndpoint;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
@@ -18,6 +20,8 @@ public class WebSocketConfig {
     @Bean
     public ServerEndpointExporter serverEndpointExporter() {
         ChatEndpoint.setApplicationContext(applicationContext);
+        ClientEndpointToAI.setApplicationContext(applicationContext);
+        HumanCustomerEndpoint.setApplicationContext(applicationContext);
         return new ServerEndpointExporter();
     }
 
