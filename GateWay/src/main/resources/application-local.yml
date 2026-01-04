@@ -1,0 +1,16 @@
+wx:
+  nacos:
+    host: localhost
+    port: 18375
+
+  datasource:
+    host: localhost
+    username: gold_user
+    pw: TianXiaWuShuang
+
+  redis:
+    host: localhost
+    port: 6379
+    password: e65K4t8w2
+    database: 0
+

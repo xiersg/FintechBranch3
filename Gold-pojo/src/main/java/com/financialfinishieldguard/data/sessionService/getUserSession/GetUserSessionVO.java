@@ -10,5 +10,5 @@ import java.util.List;
 @Accessors(chain = true)
 public class GetUserSessionVO {
 
-    private List<UserSessions> userSessions;
+    private List<UserSessionsVO> userSessions;
 }

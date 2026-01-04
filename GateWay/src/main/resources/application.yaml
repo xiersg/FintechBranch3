@@ -4,10 +4,16 @@ server:
 spring:
   application:
     name: GateWay
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}  # 默认dev，命令行可覆盖
+
   cloud:
     nacos:
       discovery:
-        server-addr: 127.0.0.1:18375
+        server-addr: ${wx.nacos.host}:${wx.nacos.port}
+        # 强制指定 gRPC 地址
+        server-grpc-addr: ${wx.nacos.host}:${wx.nacos.gRPC}
+
     gateway:
       httpclient:
         connect-timeout: 60000 # 连接超时时间，单位毫秒

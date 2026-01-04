@@ -136,6 +136,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
 
         //如果源对象的字段是 Long 类型，而目标对象的字段是 String 类型，BeanUtils.copyProperties 无法自动进行类型转换，因此这个字段不会被复制。
         BeanUtils.copyProperties(user, response);
+        response.setUserId(user.getUserId().toString());
         // token, session, jwt
         // jwt : json web token
         //header.payload.signature
@@ -168,6 +169,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         //登录成功
         LoginCodeVO response = new LoginCodeVO();
         BeanUtils.copyProperties(user, response);
+        response.setUserId(user.getUserId().toString());
 
 
         String token = JwtUtil.generate(String.valueOf(response.getUserId()), response.getRole().toString());
@@ -213,6 +215,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         User user = this.getById(userId);
         GetUserInfoVO response = new GetUserInfoVO();
         BeanUtils.copyProperties(user, response);
+        response.setUserId(user.getUserId().toString());
 
         return response;
     }

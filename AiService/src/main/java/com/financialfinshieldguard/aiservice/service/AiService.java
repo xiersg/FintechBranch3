@@ -2,12 +2,14 @@ package com.financialfinshieldguard.aiservice.service;
 
 import com.financialfinishieldguard.data.aiService.analyseAudio.AnalyseAudioVO;
 import com.financialfinishieldguard.data.aiService.analyseImage.AnalyseImageVO;
+import com.financialfinishieldguard.data.aiService.analyseImageText.AnalyseImageTextVO;
 import com.financialfinishieldguard.data.aiService.getCurrentUserDialogues.GetCurrentUserDialoguesVO;
 import com.financialfinishieldguard.data.aiService.module1Detect.Module1DetectDTO;
 import com.financialfinishieldguard.data.aiService.module1Detect.Module1DetectVO;
 import com.financialfinishieldguard.data.aiService.module2Detect.Module2DetectDTO;
 import com.financialfinishieldguard.data.aiService.module2Detect.Module2DetectVO;
 import com.financialfinishieldguard.data.aiService.newDialogue.NewDialogueDTO;
+import com.financialfinishieldguard.data.sessionService.HumanCustomerInfo;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -36,6 +38,13 @@ public interface AiService {
     AnalyseImageVO analyseImage(MultipartFile image);
 
     /**
+     * 传图片文件，识别图片中的文字
+     * @param image
+     * @return
+     */
+    AnalyseImageTextVO analyseImageText(MultipartFile image);
+
+    /**
      * 生成一个新对话
      * @param dialogueDTO
      */
@@ -59,7 +68,9 @@ public interface AiService {
      * 获取客服的userIds
      * @return
      */
-    List<String> getHumanCustomerUserIds();
+    List<HumanCustomerInfo> getHumanCustomerUserIds();
 
     AnalyseAudioVO analyseAudio(MultipartFile file);
+
+
 }

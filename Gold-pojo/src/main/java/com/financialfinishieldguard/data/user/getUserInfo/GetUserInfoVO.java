@@ -15,18 +15,12 @@ public class GetUserInfoVO {
     /**
      * 用户Id
      */
-    private Long userId;
-
+    private String userId;
 
     /**
      * 用户昵称
      */
     private String userName;
-
-//    /**
-//     * 密码
-//     */
-//    private String password;
 
     /**
      * 邮箱

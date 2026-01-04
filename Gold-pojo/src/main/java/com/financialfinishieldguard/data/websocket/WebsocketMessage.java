@@ -7,9 +7,11 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class WebsocketMessage {
 
-    private Long fromUserId;
+    private String type;
 
-    private Long sessionId;
+    private String fromUserId;
+
+    private String sessionId;
 
     private String message;
 

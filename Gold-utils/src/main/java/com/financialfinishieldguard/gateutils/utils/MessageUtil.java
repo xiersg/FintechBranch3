@@ -10,8 +10,8 @@ import org.springframework.stereotype.Component;
  */
 public class MessageUtil {
 
-    public static String getMessage(Long fromUserId, Long sessionId, String msg) {
-        WebsocketMessage message = new WebsocketMessage().setFromUserId(fromUserId).setSessionId(sessionId).setMessage(msg);
+    public static String getMessage(Long fromUserId, Long sessionId, String msg, String type) {
+        WebsocketMessage message = new WebsocketMessage().setType(type).setFromUserId(fromUserId.toString()).setSessionId(sessionId.toString()).setMessage(msg);
         return JSON.toJSONString(message);
     }
 
@@ -22,7 +22,7 @@ public class MessageUtil {
     }
 
     public static String getHumanCustomerMessage(Long fromUserId, String msg) {
-        WebsocketMessage message = new WebsocketMessage().setFromUserId(fromUserId).setMessage(msg);
+        WebsocketMessage message = new WebsocketMessage().setFromUserId(fromUserId.toString()).setMessage(msg);
         return JSON.toJSONString(message);
     }
 

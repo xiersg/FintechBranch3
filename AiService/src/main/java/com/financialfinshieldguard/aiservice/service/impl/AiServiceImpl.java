@@ -7,6 +7,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.financialfinishieldguard.data.aiService.analyseAudio.AnalyseAudioVO;
 import com.financialfinishieldguard.data.aiService.analyseImage.AnalyseImageVO;
+import com.financialfinishieldguard.data.aiService.analyseImageText.AnalyseImageTextVO;
 import com.financialfinishieldguard.data.aiService.getCurrentUserDialogues.GetCurrentUserDialoguesVO;
 import com.financialfinishieldguard.data.aiService.getCurrentUserDialogues.UserDialogueInfo;
 import com.financialfinishieldguard.data.aiService.module1Detect.Module1DetectDTO;
@@ -14,6 +15,7 @@ import com.financialfinishieldguard.data.aiService.module1Detect.Module1DetectVO
 import com.financialfinishieldguard.data.aiService.module2Detect.Module2DetectDTO;
 import com.financialfinishieldguard.data.aiService.module2Detect.Module2DetectVO;
 import com.financialfinishieldguard.data.aiService.newDialogue.NewDialogueDTO;
+import com.financialfinishieldguard.data.sessionService.HumanCustomerInfo;
 import com.financialfinishieldguard.entity.User;
 import com.financialfinishieldguard.gateutils.constants.UserContext;
 import com.financialfinishieldguard.gateutils.exception.UserException;
@@ -31,7 +33,9 @@ import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
@@ -47,6 +51,9 @@ public class AiServiceImpl extends ServiceImpl<AiServiceMapper, User> implements
 
 
     private final AiServiceMapper aiServiceMapper;
+
+    @Value("${ai.url.ai-http-url}")
+    private String httpUrl;
 
     @Autowired
     private MessageManager messageManager;
@@ -70,7 +77,7 @@ public class AiServiceImpl extends ServiceImpl<AiServiceMapper, User> implements
             CloseableHttpClient httpClients = HttpClients.createDefault();
 
             // 使用 URIBuilder 构造带有查询参数的 URL
-            URIBuilder uriBuilder = new URIBuilder("http://13425.free.idcfengye.com/api/get_chathistory_name");
+            URIBuilder uriBuilder = new URIBuilder(httpUrl + "/api/get_chathistory_name");
             //传当前用户的ID
             uriBuilder.addParameter("user_id", userId.toString());
 
@@ -137,7 +144,7 @@ public class AiServiceImpl extends ServiceImpl<AiServiceMapper, User> implements
             CloseableHttpClient httpClients = HttpClients.createDefault();
 
             // 使用 URIBuilder 构造带有查询参数的 URL
-            URIBuilder uriBuilder = new URIBuilder("http://13425.free.idcfengye.com/api/get_chathistory");
+            URIBuilder uriBuilder = new URIBuilder(httpUrl + "/api/get_chathistory");
             //传当前用户的ID
             uriBuilder.addParameter("session_id", "1");
 
@@ -193,7 +200,7 @@ public class AiServiceImpl extends ServiceImpl<AiServiceMapper, User> implements
             CloseableHttpClient httpClient = HttpClients.createDefault();
 
             // 使用 URIBuilder 构造带有查询参数的 URL
-            URIBuilder uriBuilder = new URIBuilder("http://13425.free.idcfengye.com/api/module2/process-image");
+            URIBuilder uriBuilder = new URIBuilder(httpUrl + "/api/module2/process-image");
             //传当前用户的ID
             uriBuilder.addParameter("print_yn", "false");
 
@@ -253,6 +260,76 @@ public class AiServiceImpl extends ServiceImpl<AiServiceMapper, User> implements
     }
 
     /**
+     * 传图片文件，分析图片文字
+     *
+     * @param file
+     * @return
+     */
+    @Override
+    public AnalyseImageTextVO analyseImageText(MultipartFile file) {
+        try {
+            // 创建 HttpClient 对象
+            CloseableHttpClient httpClient = HttpClients.createDefault();
+
+            // 使用 URIBuilder 构造带有查询参数的 URL
+            URIBuilder uriBuilder = new URIBuilder(httpUrl + "/paddle_ocr");
+
+            // 获取 URI
+            URI uri = uriBuilder.build();
+
+            //创建请求对象
+            HttpPost httpPost = new HttpPost(uri);
+
+            // 检查传入的文件是否为空
+            if (file == null || file.isEmpty()) {
+                throw new IllegalArgumentException("文件不能为空");
+            }
+
+            // 使用 MultipartEntityBuilder 构建请求体
+            MultipartEntityBuilder builder = MultipartEntityBuilder.create();
+            builder.addBinaryBody(
+                    "file", // 参数名
+                    file.getInputStream(), // 图片文件对象
+                    ContentType.create("image/png"), // 图片文件的 MIME 类型
+                    file.getOriginalFilename() // 图片文件名
+            );
+
+            // 构建 HttpEntity
+            HttpEntity multipartEntity = builder.build();
+
+            // 设置请求体
+            httpPost.setEntity(multipartEntity);
+            //发送请求
+            CloseableHttpResponse response = httpClient.execute(httpPost);
+            //解析返回结果
+            //获取服务端返回回来的状态码
+            int statusCode = response.getStatusLine().getStatusCode();
+
+            System.out.println("服务端返回的状态码: " + statusCode);
+
+            //获取服务端返回回来的响应体，然后通过一个工具类来解析这个响应体
+            HttpEntity entity1 = response.getEntity();
+            String body = EntityUtils.toString(entity1);
+
+            System.out.println("服务端返回的数据是: " + body);
+
+            ObjectMapper objectMapper = new ObjectMapper();
+            //注意：这里可以直接转是因为body中的参数名与实体类中的名字一模一样！！！一一对应！！！
+            AnalyseImageTextVO analyseImageTextVO = objectMapper.readValue(body, AnalyseImageTextVO.class);
+
+            //关闭资源
+            response.close();
+            httpClient.close();
+
+            return analyseImageTextVO;
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        } catch (URISyntaxException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
      * 生成一个新对话
      *
      * @param dialogueDTO
@@ -264,7 +341,7 @@ public class AiServiceImpl extends ServiceImpl<AiServiceMapper, User> implements
             CloseableHttpClient httpClient = HttpClients.createDefault();
 
             // 使用 URIBuilder 构造带有查询参数的 URL
-            URIBuilder uriBuilder = new URIBuilder("http://13425.free.idcfengye.com/api/new_chathistory");
+            URIBuilder uriBuilder = new URIBuilder(httpUrl + "/api/new_chathistory");
             uriBuilder.addParameter("user_id", dialogueDTO.getUserId().toString());
             uriBuilder.addParameter("character_type", dialogueDTO.getCharacterType());
             uriBuilder.addParameter("name", dialogueDTO.getName());
@@ -315,7 +392,7 @@ public class AiServiceImpl extends ServiceImpl<AiServiceMapper, User> implements
             CloseableHttpClient httpClient = HttpClients.createDefault();
 
             // 创建请求对象
-            HttpPost httpPost = new HttpPost("http://13425.free.idcfengye.com/api/module1/detect");
+            HttpPost httpPost = new HttpPost(httpUrl + "/api/module1/detect");
 
             // 使用 ObjectMapper 将 Module1DetectDTO 转换为 JSON 字符串
             ObjectMapper objectMapper = new ObjectMapper();
@@ -344,6 +421,7 @@ public class AiServiceImpl extends ServiceImpl<AiServiceMapper, User> implements
             System.out.println("服务端返回的数据是: " + body);
 
             //注意：这里可以直接转是因为body中的参数名与实体类中的名字一模一样！！！一一对应！！！
+
             Module1DetectVO module1DetectVO = objectMapper.readValue(body, Module1DetectVO.class);
 
             //关闭资源
@@ -374,7 +452,7 @@ public class AiServiceImpl extends ServiceImpl<AiServiceMapper, User> implements
             CloseableHttpClient httpClient = HttpClients.createDefault();
 
             // 创建请求对象
-            HttpPost httpPost = new HttpPost("http://13425.free.idcfengye.com/api/module2/detect");
+            HttpPost httpPost = new HttpPost(httpUrl + "/api/module2/detect");
 
             // 使用 ObjectMapper 将 Module1DetectDTO 转换为 JSON 字符串
             ObjectMapper objectMapper = new ObjectMapper();
@@ -416,12 +494,17 @@ public class AiServiceImpl extends ServiceImpl<AiServiceMapper, User> implements
     }
 
     @Override
-    public List<String> getHumanCustomerUserIds() {
+    public List<HumanCustomerInfo> getHumanCustomerUserIds() {
         QueryWrapper<User> userQueryWrapper = new QueryWrapper<>();
         userQueryWrapper.eq("role", 3);
         List<User> list = this.list(userQueryWrapper);
-        List<String> userIds = list.stream().map(user -> String.valueOf(user.getUserId())).collect(Collectors.toList());
-        return userIds;
+        List<HumanCustomerInfo> collect = list.stream().map(user -> {
+            HumanCustomerInfo humanCustomerInfo = new HumanCustomerInfo();
+            BeanUtils.copyProperties(user, humanCustomerInfo);
+            humanCustomerInfo.setUserId(user.getUserId().toString());
+            return humanCustomerInfo;
+        }).collect(Collectors.toList());
+        return collect;
     }
 
     @Override
@@ -431,7 +514,7 @@ public class AiServiceImpl extends ServiceImpl<AiServiceMapper, User> implements
             CloseableHttpClient httpClient = HttpClients.createDefault();
 
             // 创建请求对象
-            HttpPost httpPost = new HttpPost("http://13425.free.idcfengye.com/anti_spoof_score");
+            HttpPost httpPost = new HttpPost(httpUrl + "/anti_spoof_score");
 
             // 检查传入的文件是否为空
             if (file == null || file.isEmpty()) {

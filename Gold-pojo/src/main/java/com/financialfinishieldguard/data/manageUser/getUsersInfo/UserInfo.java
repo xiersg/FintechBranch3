@@ -12,7 +12,7 @@ public class UserInfo {
     /**
      * 用户Id
      */
-    private Long userId;
+    private String userId;
 
     /**
      * 用户昵称

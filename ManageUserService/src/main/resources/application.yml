@@ -2,19 +2,32 @@
 server:
   port: 8090
   address: 0.0.0.0
+#  ssl:
+#    enabled: true
+#    key-store: classpath:boothttps.jks
+#    key-store-type: JKS
+#    key-store-password: 123456
 spring:
   application:
     name: ManageUserService
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}  # 默认dev，命令行可覆盖
 
   cloud:
     nacos:
       discovery:
-        server-addr: 127.0.0.1:18375
+        server-addr: ${wx.nacos.host}:${wx.nacos.port}
+        # 强制指定 gRPC 地址
+        server-grpc-addr: ${wx.nacos.host}:${wx.nacos.gRPC}
+        # 关键配置：告诉Nacos这是HTTPS服务
+  #        metadata:
+  #          protocol: https
+
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/gold?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC
-    username: root
-    password: Ww051229xX
+    url: jdbc:mysql://${wx.datasource.host}:3306/gold?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC
+    username: ${wx.datasource.username}
+    password: ${wx.datasource.pw}
     hikari:
       # 设置最大连接池大小
       maximum-pool-size: 30
@@ -36,11 +49,10 @@ spring:
       pool-name: HikariCP
 
   redis:
-    database: 0
-    host: 127.0.0.1
-    port: 59000
-    password: e65K4t8w2
-
+    host: ${wx.redis.host}
+    port: ${wx.redis.port}
+    password: ${wx.redis.password}
+    database: ${wx.redis.database}
 
 # 打印 sql
 mybatis-plus:

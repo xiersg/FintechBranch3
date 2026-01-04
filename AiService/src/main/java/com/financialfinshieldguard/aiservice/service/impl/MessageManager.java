@@ -62,12 +62,12 @@ public class MessageManager {
      * @param fromUserId 发信息的用户
      * @param message 消息
      */
-    public void sendAIChatMessageToUserByUserId(Long userId, Long fromUserId, Long sessionId, String message) {
+    public void sendAIChatMessageToUserByUserId(Long userId, Long fromUserId, Long sessionId, String message, String type) {
         Session session = userIdSessionMap.get(userId);
         if (session != null && session.isOpen()) {
             try {
                 //在这里将信息构建为JSON格式
-                session.getBasicRemote().sendText(MessageUtil.getMessage(fromUserId, sessionId, message));
+                session.getBasicRemote().sendText(MessageUtil.getMessage(fromUserId, sessionId, message, type));
             } catch (Exception e) {
                 e.printStackTrace();
             }

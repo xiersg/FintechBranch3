@@ -76,7 +76,7 @@ public class ChatEndpoint {
         messageManager.registerSession(userId, session);
 
         //响应成功信息
-        messageManager.sendAIChatMessageToUserByUserId(userId, 0L, null, MessageConstant.WS_OPEN);
+        messageManager.sendAIChatMessageToUserByUserId(userId, 0L, null, MessageConstant.WS_OPEN, "system");
     }
 
     /**
@@ -103,7 +103,12 @@ public class ChatEndpoint {
         List<SessionMessages> historyMessage = sessionMessagesService.getHistoryBySessionIdToAI(saveMessageDTO.getSessionId());
 
         List<String> result = historyMessage.stream().map(single -> {
-            SingleMsg msg = new SingleMsg().setContent(single.getContent()).setRole("user");
+            SingleMsg msg  = new SingleMsg();
+            if (single.getMessageType() == 1) {
+                msg = new SingleMsg().setContent(single.getContent()).setRole("user");
+            } else {
+                msg = new SingleMsg().setContent(single.getContent()).setRole("assistant");
+            }
             return JSON.toJSONString(msg);
         }).collect(Collectors.toList());
 
@@ -234,7 +239,7 @@ public class ChatEndpoint {
             System.out.println("服务端返回的数据是: " + body);
 
             //现在改成ws，本来就要传JSON结构，就不需要再转实体类了！直接把body发给前端
-            messageManager.sendAIChatMessageToUserByUserId(userId, 0L, null, body);
+            messageManager.sendAIChatMessageToUserByUserId(userId, 0L, null, body, "ai");
 
             //关闭资源
             response.close();

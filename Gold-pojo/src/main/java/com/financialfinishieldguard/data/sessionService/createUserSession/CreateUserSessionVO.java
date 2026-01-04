@@ -7,6 +7,6 @@ import lombok.experimental.Accessors;
 @Accessors(chain = true)
 public class CreateUserSessionVO {
 
-    private Long sessionId;
+    private String sessionId;
 
 }

@@ -2,6 +2,7 @@ package com.financialfinshieldguard.aiservice.controller;
 
 import com.financialfinishieldguard.data.aiService.analyseAudio.AnalyseAudioVO;
 import com.financialfinishieldguard.data.aiService.analyseImage.AnalyseImageVO;
+import com.financialfinishieldguard.data.aiService.analyseImageText.AnalyseImageTextVO;
 import com.financialfinishieldguard.data.aiService.getCurrentUserDialogues.GetCurrentUserDialoguesVO;
 import com.financialfinishieldguard.data.aiService.module1Detect.Module1DetectDTO;
 import com.financialfinishieldguard.data.aiService.module1Detect.Module1DetectVO;
@@ -9,6 +10,7 @@ import com.financialfinishieldguard.data.aiService.module2Detect.Module2DetectDT
 import com.financialfinishieldguard.data.aiService.module2Detect.Module2DetectVO;
 import com.financialfinishieldguard.data.aiService.newDialogue.NewDialogueDTO;
 import com.financialfinishieldguard.data.common.Result;
+import com.financialfinishieldguard.data.sessionService.HumanCustomerInfo;
 import com.financialfinshieldguard.aiservice.service.AiService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -80,6 +82,20 @@ public class AiServiceController {
     }
 
     /**
+     * 传图片文件，识别图片中的文字
+     *
+     * @param file
+     * @return
+     */
+    @PostMapping("/imageText")
+    public Result<AnalyseImageTextVO> analyseImageText(MultipartFile file) {
+
+        AnalyseImageTextVO response = aiService.analyseImageText(file);
+
+        return Result.OK(response);
+    }
+
+    /**
      * 生成一个新对话
      *
      * @return
@@ -113,7 +129,6 @@ public class AiServiceController {
     @PostMapping("/detect2")
     public Result<Module2DetectVO> detect2(@RequestBody Module2DetectDTO request) {
         Module2DetectVO response = aiService.detect2(request);
-
         return Result.OK(response);
     }
 
@@ -122,9 +137,9 @@ public class AiServiceController {
      * @return
      */
     @GetMapping("/getHumanCustomer")
-    public Result<List<String>> getHumanCustomerUserIds() {
+    public Result<List<HumanCustomerInfo>> getHumanCustomerUserIds() {
 
-         List<String> response = aiService.getHumanCustomerUserIds();
+         List<HumanCustomerInfo> response = aiService.getHumanCustomerUserIds();
 
         return Result.OK(response);
     }

@@ -13,6 +13,8 @@ public class Module1DetectDTO {
 
     private Integer amount;
 
+    private String nameOrig;
+
     private String nameDest;
 
     private Integer oldbalanceOrg;

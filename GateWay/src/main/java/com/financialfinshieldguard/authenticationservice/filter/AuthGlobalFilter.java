@@ -50,8 +50,6 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
             response.setStatusCode(HttpStatus.UNAUTHORIZED);
             return response.setComplete();
         }
-
-
         //传递用户信息
         System.out.println("Claims: " + claims); // 打印 Claims 内容
 
@@ -63,7 +61,6 @@ public class AuthGlobalFilter implements GlobalFilter, Ordered {
                         .header(AuthConstant.USER_ID, userIdStr)
                         .header(AuthConstant.ROLE, role))
                 .build();
-
         //放行
         return chain.filter(swe);
     }

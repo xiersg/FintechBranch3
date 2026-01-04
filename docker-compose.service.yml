@@ -1,0 +1,63 @@
+services:
+  gate-way: # Docker 镜像名称必须全使用小写字母
+    container_name: GateWay
+    build: # 服务的 Docker 构建文件位置
+      context: ./GateWay
+      dockerfile: Dockerfile
+    ports:
+      - "10010:10010"
+    networks:
+      - wushuang
+    depends_on:
+      - authentication-service
+      - ai-service
+      - manage-user-service
+      - complaint-service
+
+  authentication-service:
+    container_name: AuthenticationService
+    build:
+      context: ./AuthenticationService
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    networks:
+      - wushuang
+    environment:
+      - JAVA_OPTS=-Dnacos.remote.client.rpc.timeout=10000 -Dnacos.remote.client.rpc.retry=3
+  manage-user-service:
+    container_name: ManageUserService
+    build:
+      context: ./ManageUserService
+      dockerfile: Dockerfile
+    ports:
+      - "8090:8090"
+    networks:
+      - wushuang
+
+  complaint-service:
+    container_name: ComplaintService
+    build:
+      context: ./ComplaintService
+      dockerfile: Dockerfile
+    ports:
+      - "9999:9999"
+    networks:
+      - wushuang
+
+  ai-service:
+    container_name: AiService
+    build:
+      context: ./AiService
+      dockerfile: Dockerfile
+    ports:
+      - "6666:6666"
+    networks:
+      - wushuang
+
+# 网络,不定义的话就是默认网络
+# 网络配置修正（映射结构）
+networks:
+  wushuang:
+    driver: bridge  # 指定网络驱动，默认为 bridge
+

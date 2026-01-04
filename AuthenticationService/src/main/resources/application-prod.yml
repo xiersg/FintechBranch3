@@ -1,0 +1,15 @@
+wx:
+  nacos:
+    host: nacos
+    port: 8848
+
+  datasource:
+    host: mysql
+    pw: TianXiaWuShuang
+
+  redis:
+    host: redis
+    port: 6379
+    password: e65K4t8w2
+    database: 0
+

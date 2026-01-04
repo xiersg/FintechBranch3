@@ -7,14 +7,17 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.financialfinishieldguard.data.sessionService.createUserSession.CreateUserSessionDTO;
 import com.financialfinishieldguard.data.sessionService.createUserSession.CreateUserSessionVO;
 import com.financialfinishieldguard.data.sessionService.getUserSession.GetUserSessionVO;
+import com.financialfinishieldguard.data.sessionService.getUserSession.UserSessionsVO;
 import com.financialfinishieldguard.entity.UserSessions;
 import com.financialfinishieldguard.gateutils.constants.UserContext;
 import com.financialfinishieldguard.gateutils.exception.UserException;
 import com.financialfinshieldguard.aiservice.service.UserSessionsService;
 import com.financialfinshieldguard.aiservice.mapper.UserSessionsMapper;
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
 * @author 20316
@@ -55,7 +58,7 @@ public class UserSessionsServiceImpl extends ServiceImpl<UserSessionsMapper, Use
 
         this.save(userSessions);
 
-        return new CreateUserSessionVO().setSessionId(sessionId);
+        return new CreateUserSessionVO().setSessionId(sessionId.toString());
     }
 
     /**
@@ -70,7 +73,14 @@ public class UserSessionsServiceImpl extends ServiceImpl<UserSessionsMapper, Use
         queryWrapper.eq("user_id", userId).orderByDesc("created_at");
 
         List<UserSessions> list = this.list(queryWrapper);
-        return new GetUserSessionVO().setUserSessions(list);
+        List<UserSessionsVO> collect = list.stream().map(l -> {
+            UserSessionsVO v = new UserSessionsVO();
+            BeanUtils.copyProperties(l, v);
+            v.setSessionId(l.getSessionId().toString());
+            v.setUserId(l.getUserId().toString());
+            return v;
+        }).collect(Collectors.toList());
+        return new GetUserSessionVO().setUserSessions(collect);
     }
 }
 

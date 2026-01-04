@@ -80,6 +80,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
                 .map(user -> {
                     UserInfo userInfo = new UserInfo();
                     BeanUtils.copyProperties(user, userInfo);
+                    userInfo.setUserId(user.getUserId().toString());
                     return userInfo;
                 })
                 .collect(Collectors.toList());

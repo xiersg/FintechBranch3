@@ -2,11 +2,14 @@ com\financialfinishieldguard\gateutils\constants\user\UserDataBaseConstant.class
 com\financialfinishieldguard\gateutils\config\CorsConfig.class
 com\financialfinishieldguard\gateutils\config\MvcConfig.class
 com\financialfinishieldguard\gateutils\constants\enumm\TimeOutEnum.class
+com\financialfinishieldguard\gateutils\constants\MessageConstant.class
 com\financialfinishieldguard\gateutils\exception\GlobalExceptionHandler.class
 com\financialfinishieldguard\gateutils\constants\enumm\RoleEnum.class
 com\financialfinishieldguard\gateutils\exception\CodeException.class
 com\financialfinishieldguard\gateutils\constants\enumm\ConfigEnum.class
+com\financialfinishieldguard\gateutils\utils\MessageUtil.class
 com\financialfinishieldguard\gateutils\interceptors\UserInfoInterceptor.class
+com\financialfinishieldguard\gateutils\constants\AIConstant.class
 com\financialfinishieldguard\gateutils\exception\UserException.class
 com\financialfinishieldguard\gateutils\utils\SendMailUtil.class
 com\financialfinishieldguard\gateutils\config\AppConfig.class

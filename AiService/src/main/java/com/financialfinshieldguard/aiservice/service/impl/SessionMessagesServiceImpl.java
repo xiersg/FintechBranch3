@@ -80,7 +80,7 @@ public class SessionMessagesServiceImpl extends ServiceImpl<SessionMessagesMappe
     public List<SessionMessages> getHistoryBySessionIdToAI(Long sessionId) {
         QueryWrapper<SessionMessages> queryWrapper = new QueryWrapper<>();
         queryWrapper.eq("session_id", sessionId)
-                .orderByDesc("created_at") // 按 created_at 字段降序排列
+                .orderByAsc("created_at") // 按 created_at 字段降序排列
                 .last("LIMIT 20"); // 限制查询结果为最近的 20 条记录
         return this.list(queryWrapper);
     }
